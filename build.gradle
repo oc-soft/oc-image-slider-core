@@ -1,0 +1,91 @@
+
+
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform' version '1.4.31'
+}
+
+
+repositories {
+    jcenter()
+}
+
+
+ext.jarApp = [
+    output: "${buildDir}/jar/${rootProject.name}",
+    exeSh: "gen.sh"
+]
+
+
+kotlin {
+    jvm()
+
+    sourceSets {
+        jvmMain {
+            dependencies {
+                implementation 'gnu.getopt:java-getopt:1.0.13'
+            }
+            
+        }
+    }
+}
+
+def getRuntimeDependencyFiles(def compilationName) {
+    return kotlin.targets.jvm.compilations[
+        compilationName].runtimeDependencyFiles
+}
+
+
+
+task copyDependsJar {
+
+    doLast {
+
+        def classes = getRuntimeDependencyFiles('main')
+        classes += jvmJar.archivePath
+
+        copy {
+            from classes
+            into jarApp.output
+        }
+    }
+}
+copyDependsJar.dependsOn jvmJar
+
+
+task createAppScript {
+
+    doLast {
+        def classes = getRuntimeDependencyFiles('main')
+        classes += jvmJar.archivePath
+
+         
+        def classPathArray = []
+        classes.each {
+            classPathArray.add("\${JAR_ROOT_DIR}/${it.name}")
+        }
+    
+        def classPaths = classPathArray.join(':') 
+        def binding = [
+            classpaths: "-cp \"${classPaths}\"",
+            mainclass: 'net.oc_soft.sgen.App'
+        ]
+        def runJarSrc0 = new File("${projectDir}/tools/run-jar-0.sh")
+        def runJarSrc1 = new File("${projectDir}/tools/run-jar-1.sh")
+        def tmp = new groovy.text.StreamingTemplateEngine()
+        tmp = tmp.createTemplate(runJarSrc1)
+        def jarSh = runJarSrc0.text + tmp.make(binding)
+
+
+        def shPath = new File("${jarApp.output}/${jarApp.exeSh}")
+        shPath.text = jarSh
+        shPath.executable = true
+
+    }
+}
+
+
+createAppScript.dependsOn copyDependsJar
+
+
+
+// vi: se ts=4 sw=4 et:

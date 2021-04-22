@@ -1,0 +1,19 @@
+
+
+<main>
+  <div class="card container">
+    <div class="card">
+      <h2><!-- long-term-care-service-0 --></h2> 
+      <p><!-- long-term-care-0  --></p>
+    </div>
+    <div class="card">
+      <h2><!-- group-home-service-0 --></h2> 
+      <p><!-- group-home-care-0  --></p>
+    </div>
+    <div class="card">
+      <h2><!-- child-care-service-0 --></h2> 
+      <p><!-- child-care-care-0  --></p>
+    </div>
+  </div>
+</main>
+<!-- // vi: se ts=2 sw=2 et:  -->
