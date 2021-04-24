@@ -1,0 +1,10 @@
+{
+  "output-root" : "build/web-site",
+  "resource-root" : "src/site", 
+  "contents-dir" : "contents",
+  "template-root" : "frame",
+  "master-template": "master-0.php",
+  "__comments": [
+    "/* vi: se ts=2 sw=2 et: */"
+  ]
+}

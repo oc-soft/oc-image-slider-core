@@ -4,27 +4,79 @@ plugins {
     id 'org.jetbrains.kotlin.multiplatform' version '1.4.31'
 }
 
-
 repositories {
     jcenter()
 }
 
+ext.appNames = [
+    [ 'main', 'main' ]
+]
 
 ext.jarApp = [
     output: "${buildDir}/jar/${rootProject.name}",
     exeSh: "gen.sh"
 ]
 
+ext.webpackSetting = [
+    gradleBuildJs: 'gradle-build.js',
+    libraryTarget: 'umd',
+    mainSrcTemplate: 'src/php/client-resources.php',
+    mainStyleSrc: 'src/style/main.scss',
+    mainHtmlOutput: 'client-resources.php',
+    jsProgramDir: 'js',
+    cssDir: 'css'
+]
+
+ext.webpackSetting.gradleBuildPath =
+    new File(new File(projectDir, "webpack.config.d"),
+         "_${webpackSetting.gradleBuildJs}")
+
+ext.karmaWebpackSetting = [
+    gradleBuildPath: new File(new File(projectDir, "karma.config.d"),
+        "_${webpackSetting.gradleBuildJs}")
+]
+
+ext.buildSiteDependsMode = 'Development'
+
 
 kotlin {
     jvm()
+
+    js {
+        browser {
+            webpackTask {
+                output.libraryTarget = webpackSetting.libraryTarget
+            }
+        }
+    }
 
     sourceSets {
         jvmMain {
             dependencies {
                 implementation 'gnu.getopt:java-getopt:1.0.13'
+                implementation 'com.google.code.gson:gson:2.8.6'
+                implementation 'com.google.guava:guava:23.0'
             }
-            
+        }
+        jsCommon {
+            dependsOn commonMain
+        }
+        jsMain {
+            dependsOn jsCommon
+            dependencies {
+                implementation kotlin('stdlib-js')
+                implementation( 
+                    'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3')
+                compileOnly npm('html-webpack-plugin', '^4.0.2')
+                compileOnly npm('webpack-cdn-plugin', '>=3.3.1')
+                compileOnly npm('mini-css-extract-plugin', '>=1.4.0')
+                compileOnly npm('@fortawesome/fontawesome-free', '>=5.15.1')
+                compileOnly npm('bootstrap', '>=4.5.3')
+                compileOnly npm('jquery', '>=3.5.1')
+                compileOnly npm('sass', '>=1.32.8')
+                compileOnly npm('css-loader', '>=5.2.0')
+                compileOnly npm('sass-loader', '^10.1.1')
+            }
         }
     }
 }
@@ -86,6 +138,122 @@ task createAppScript {
 
 createAppScript.dependsOn copyDependsJar
 
+
+task buildSite {
+    doLast {
+        exec {
+            workingDir projectDir
+            executable = new File("${jarApp.output}/${jarApp.exeSh}")
+        }
+    }
+}
+
+buildSite.dependsOn createAppScript
+
+task webpackGradleBuild {
+    doLast {
+        def jsName = webpackSetting.gradleBuildJs
+        def gradleBuildSrc = new File(new File(projectDir, "tools"), jsName)    
+        def jsRoot = rootPackageJson.rootPackageJson.parentFile
+        def mainSrcTemplate = new File(projectDir,
+            webpackSetting.mainSrcTemplate) 
+        def mainStyleTemplate = new File(projectDir,
+            webpackSetting.mainStyleSrc)
+        def binding = [
+            config: """{
+                |  projectDir: '${projectDir}',
+                |  libraryTarget: '${webpackSetting.libraryTarget}',
+                |  jsRootDir: '${jsRoot}',
+                |  mainHtmlOutput: '${webpackSetting.mainHtmlOutput}',
+                |  programDir: '${webpackSetting.jsProgramDir}',
+                |  cssDir: '${webpackSetting.cssDir}',
+                |  mainProgramName: '${appNames[0][0]}',
+                |  mainSrcTemplate: '${mainSrcTemplate}',
+                |  mainSrcCss: '${mainStyleTemplate}'
+                |}""".stripMargin()
+        ]
+        def tmp = new groovy.text.StreamingTemplateEngine()
+        tmp = tmp.createTemplate(gradleBuildSrc) 
+        def gradleBuildContents = tmp.make(binding)
+        webpackSetting.gradleBuildPath.text = gradleBuildContents
+        karmaWebpackSetting.gradleBuildPath.text = gradleBuildContents
+    }
+}
+
+def setupWebpack(def webpackTask) {
+    webpackTask.inputs.files webpackSetting.mainSrcTemplate,
+        webpackSetting.mainStyleSrc
+    def distDir = getDistributionDir()
+    webpackTask.outputs.files new File(distDir, webpackSetting.mainHtmlOutput)
+
+    webpackTask.dependsOn webpackGradleBuild
+}
+
+setupWebpack(jsBrowserProductionWebpack)
+setupWebpack(jsBrowserDevelopmentWebpack)
+
+/**
+ * get distribution directory
+ */
+def getDistributionDir() {
+    def result = null
+    kotlin {
+        js {
+            browser {
+                distribution {
+                    result = directory
+                }
+            }
+        }
+    }
+    return result
+}
+
+/**
+ * get index template source
+ */
+def getWebpackHtmlOutput() {
+    return [
+        new File(getDistributionDir(), webpackSetting.mainHtmlOutput)
+    ]
+}
+
+def readSgenSetting() {
+    def sgenSetting = new File("${projectDir}/sgen-setting.json")
+    return new groovy.json.JsonSlurper().parseText(sgenSetting.text)
+}
+
+task jsResourcesForSite {
+
+    doLast {
+        
+        def sgenSetting = readSgenSetting()
+        def outputRoot = sgenSetting['output-root']
+        def distDir = getDistributionDir() 
+        
+        copy {
+            from getWebpackHtmlOutput()
+            into "${outputRoot}/lib"
+        }
+        copy {
+            from "${distDir}/${webpackSetting.jsProgramDir}"
+            include '*.js'
+            include '*.map'
+            into "${outputRoot}/${webpackSetting.jsProgramDir}"
+        }
+        copy {
+            from "${distDir}/${webpackSetting.cssDir}"
+            include '*.css'
+            into "${outputRoot}/${webpackSetting.cssDir}"
+        }
+
+    }
+}
+
+jsResourcesForSite.dependsOn tasks.getByPath(
+    "jsBrowser${buildSiteDependsMode}Webpack")
+
+buildSite.dependsOn jsResourcesForSite
 
 
 // vi: se ts=4 sw=4 et:
