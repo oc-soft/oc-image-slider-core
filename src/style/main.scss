@@ -1,3 +1,61 @@
 
+.hero-image {
+  &.branding {
+    background-image: url("/img/children-oldmen.jpeg");  	
+  }
+  &.about-us {
+    background-image: url("/img/junseikai-color-1.jpeg");
+    background-size: 100%;
+  }
+  &.tone-ikoi-no-sato {
+    background-image: url("/img/tone-ikoi-no-sato-residents-1.jpeg");
+    background-size: 100%;
+  }
+  height: 20em;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
 
-/* vi: se ts=2 sw=2 et */
+.hero-text {
+  text-align: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+
+.anchor[data-href] {
+  * {
+    cursor: pointer;
+  }
+}
+
+
+@media (min-width: 576px) {
+  .card-deck {
+    &.digest-container,
+    &.album-container {
+      justify-content: space-evenly;
+    }
+  }
+  .card.digest {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+    min-width: 26em;
+    max-width: 26em;
+  }
+
+  .card.album {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+    min-width: 20em;
+    max-width: 20em;
+  }
+
+}
+
+
+
+/* vi: se ts=2 sw=2 et: */
