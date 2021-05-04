@@ -9,6 +9,11 @@ import kotlin.text.decodeToString
 import kotlin.collections.Iterable
 import kotlin.collections.List
 import kotlin.collections.ArrayList
+import kotlin.collections.Map
+import kotlin.collections.HashMap
+import kotlin.collections.mapOf
+import kotlin.collections.set
+import kotlin.collections.get
 
 import com.google.gson.Gson 
 /**
@@ -22,19 +27,20 @@ data class Setting(
     /**
      * resource root directory
      */
-    var resourceRoot: String = "src/site",
-    /**
-     * contents directory
-     */
-    var contentsDir: String = "contents",
-    /**
-     * template root directory
-     */
-    var templateRoot: String = "frame",
-    /**
-     * master template files
-     */
-    var masterTemplate: String = "master-0.php") {
+    var rootResourceMapping: Array<Map<String, Any>> 
+        = arrayOf(
+            mapOf(
+                "root-dir" to "src/site",
+                "master-template" to "master-0.php",
+                "contents-dir" to "contents",
+                "template-root" to "frame",
+                "style-dir" to "style",
+                "exclude" to arrayOf( 
+                    "^.git$",
+                    ".gitignore$", 
+                    ".DS_Store$",
+                    ".swp$",
+                    ".+~$")))) {
 
     /**
      * class instance
@@ -55,16 +61,18 @@ data class Setting(
 
                 result.outputRoot =
                     (prop["output-root"] as String?) ?: result.outputRoot
-                result.resourceRoot = 
-                    (prop["resource-root"] as String?) ?: result.resourceRoot
-                result.contentsDir = 
-                    (prop["contents-dir"] as String?) ?: result.contentsDir
-                result.templateRoot =
-                    (prop["template-root"] as String?) ?: result.templateRoot
 
-                result.masterTemplate = 
-                    (prop["master-template"] as String?) ?:     
-                        result.masterTemplate
+                val rootIterable = prop["root-resource-mapping"] 
+                    as Iterable<Map<*, *>>?
+
+                if (rootIterable != null) {
+                    val rootList = rootIterable.toList()
+                
+                    result.rootResourceMapping = Array<Map<String, Any>>(
+                        rootList.size) {
+                        rootList[it] as Map<String, Any>
+                    }
+                }
             } catch (e: IOException) {
             }
             return result

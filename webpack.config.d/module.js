@@ -1,8 +1,23 @@
 
 class Module {
-
-
   setupConfig(config) {
+    this.setupExternals(config)
+    this.setupRules(config)
+  }
+
+  setupExternals(config) {
+    config.externals = config.externals || [] 
+    
+    config.externals.push({
+      '@popperjs/core': {
+          commonjs: '@popperjs/core',
+          commonjs2: '@popperjs/core',
+          root: 'Popper'
+      }
+    })
+  }
+ 
+  setupRules(config) {
     const MiniCssExtractPlugin = require('mini-css-extract-plugin')
     config.module = config.module || {}
     config.module.rules = config.module.rules || []
@@ -10,9 +25,17 @@ class Module {
     config.module.rules.push({
       test: /\.scss$/i,
       
-      use: [MiniCssExtractPlugin.loader, 'css-loader', 'sass-loader']
+      use: [
+        MiniCssExtractPlugin.loader, 
+        {
+          loader: 'css-loader', 
+          options: {
+            url: false
+          }
+        },
+        'sass-loader'
+      ]
     })
-
   }
 }
 

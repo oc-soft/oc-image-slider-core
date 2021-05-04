@@ -1,0 +1,9 @@
+<?php 
+global $root_dir;
+
+$domain_dir = implode('/', [$root_dir, 'i18n']);
+$res = bindtextdomain('db-status', $domain_dir);
+$res = textdomain('db-status');
+
+// vi: se ts=4 sw=4 et:
+?>

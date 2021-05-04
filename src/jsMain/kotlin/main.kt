@@ -1,13 +1,14 @@
 
 import kotlinx.browser.window
-import net.oc_soft.track.Tracker
+
+import net.oc_soft.App
 
 fun main(args: Array<String>) {
 
     window.addEventListener("load", {
         evt ->
-        val tracker = Tracker() 
-        tracker.bind()
+        val app = App()
+        app.bind()
     })
 }
 

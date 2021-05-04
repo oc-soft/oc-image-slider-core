@@ -1,0 +1,75 @@
+<nav class="navbar navbar-expand-lg sticky-top">
+  <button class="navbar-toggler"
+    type="button" data-toggle="collapse" 
+    data-target="#registration-href-9956"
+    aria-controls="registration-href-9956"
+    aria-extended="false"
+    aria-label="<?php echo _('Switch Navi');  ?>"><span
+      class="navbar-toggler-icon"></span></button>
+  <div class="collapse navbar-collapse"
+    id="registration-href-9956">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <form class="form-inline">
+          <button class="btn btn-outline-primanry add-href-record"><?php
+          echo _('Add...'); ?></button>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link dropdown-ex narrow-down href-registration"
+          href="#"><?php echo _('Narrow down'); ?></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link dropdown-ex order href-registration"
+          href="#"><?php echo _('Order'); ?></a>
+      </li>
+    </ul>
+  </div>
+</nav>
+<main>
+  <div class="table-container">
+    <table class="table href-registration-list">
+      <thead>
+        <tr>
+          <th>HREF</th>
+          <th>ID</th>
+          <th>HREF_ID</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+</main>
+<div class="dropdown-ex-menu narrow-down card">
+  <table class="narrow-down-items">
+    <tbody>
+      <tr data-order>
+        <td><?php echo _('HREF'); ?></td>
+        <td contenteditable="true"></td>
+      </tr>
+      <tr data-order>
+        <td><?php echo _('ID'); ?></td>
+        <td contenteditable="true"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<div class="dropdown-ex-menu order card">
+  <table class="order-items">
+    <tbody>
+      <tr data-order>
+        <td><?php echo _('HREF'); ?></td>
+        <td><i class="fas fa-minus"></i></td>
+      </tr>
+      <tr data-order>
+        <td><?php echo _('ID'); ?></td>
+        <td><i class="fas fa-minus"></i></td>
+      </tr>
+      <tr data-order>
+        <td><?php echo _('HREF_ID'); ?></td>
+        <td><i class="fas fa-minus"></i></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<!-- vi: se ts=2 sw=2 et: -->

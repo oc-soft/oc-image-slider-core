@@ -1,0 +1,55 @@
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+
+
+table.narrow-down-items {
+  tr {
+    td:nth-child(2) {
+      width: 5em;
+    }
+  }
+}
+
+div.dropdown-ex-menu {
+  table {
+    tbody {
+      tr {
+        &.insertion-before {
+          border-top: 1px solid black;
+        }
+        &.insertion-after {
+          border-bottom: 1px solid black;
+        }
+      }
+    }
+  }
+}
+
+[data-popper-reference-hidden] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.dropdown-ex-menu {
+  visibility: hidden;
+  pointer-events: none;
+  &.visible {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+@media (min-width: 576px) {
+  .mx-xs-1 {
+    margin-left: ($spacer * .25) !important;
+    margin-right: ($spacer * .25) !important;
+  }  
+  .mr-xs-1 {
+    margin-right: ($spacer * .25) !important;
+  }
+  .ml-xs-1 {
+    margin-right: ($spacer * .25) !important;
+  }
+}
+
+/* vi: se ts=2 sw=2 et: */

@@ -16,6 +16,7 @@ class HtmlWebpack {
    * setup webpack configuration
    */
   setupWebpack(config) {
+
     this.setupHtmlPlugin(config)
     this.setupCdnPlugin(config)
   }
@@ -24,6 +25,7 @@ class HtmlWebpack {
    */
   setupHtmlPlugin(config) {
     this.setupHtmlPluginMain(config)
+    this.setupHtmlPluginSiteMgr(config)
   }
 
   /**
@@ -38,10 +40,51 @@ class HtmlWebpack {
     }
     htmlPluginConfig.filename = GradleBuild.config.mainHtmlOutput
     htmlPluginConfig.template = GradleBuild.config.mainSrcTemplate
+    htmlPluginConfig.excludeAssets = [
+      /siteMgrCss.*\.css/,
+      /mainCss.*\.js/,
+      /siteMgr.*\.js/,
+      /siteMgrCss.*\.js/
+    ]
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+  }
+  
+  /**
+   * set html-webpack-plugin up
+   */
+  setupHtmlPluginSiteMgr(config) {
+    const HtmlWebpackPlugin = require('html-webpack-plugin');
+   
+    const htmlPluginConfig = {
+      inject: false,
+      cdnModule: 'siteMgr',
+      minify: false
+    }
+    htmlPluginConfig.filename = GradleBuild.config.siteMgrHtmlOutput
+    htmlPluginConfig.template = GradleBuild.config.siteMgrSrcTemplate
+
+    htmlPluginConfig.excludeAssets = [
+      /mainCss.*\.css/,
+      /mainCss.*\.js/,
+      /main.*\.js/,
+      /siteMgrCss.*\.js/
+    ]
 
     config.plugins = config.plugins || []
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+
   }
+
+  setupHtmlExcludeAssets(config) {
+    const HtmlWebpackSkipAssetsPlugin = require(
+      'html-webpack-skip-assets-plugin').HtmlWebpackSkipAssetsPlugin
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackSkipAssetsPlugin())
+  }
+
 
   /**
    * set webpack-cdn-plugin up.
@@ -63,26 +106,33 @@ class HtmlWebpack {
         'css/brands.css'
       ]
     }
+    const basicModuleSetting = [
+      {
+        name: 'kotlin'
+      },
+      {
+        name: 'kotlinx-coroutines-core'
+      },
+      {
+        name: 'jquery'
+      },
+      {
+        name: '@popperjs/core',
+        prodUrl: '//unpkg.com/:name@:version/dist/umd/popper.js'
+
+      },
+      {
+        name: 'bootstrap',
+        styles: [
+          'dist/css/bootstrap.min.css'
+        ]
+      },
+      fontawesomeFree
+    ]
     const cdnPluginConfig = {
       modules: {
-        main: [
-          {
-            name: 'kotlin'
-          },
-          {
-            name: 'kotlinx-coroutines-core'
-          },
-          {
-            name: 'jquery'
-          },
-          {
-            name: 'bootstrap',
-            styles: [
-              'dist/css/bootstrap.min.css'
-            ]
-          },
-          fontawesomeFree
-        ]
+        main: basicModuleSetting,
+        siteMgr: basicModuleSetting
       }
     }
     cdnPluginConfig.pathToNodeModules = GradleBuild.config.jsRootDir

@@ -2,6 +2,7 @@
 
 plugins {
     id 'org.jetbrains.kotlin.multiplatform' version '1.4.31'
+    id 'net.oc_soft.msgfmt' version '0.1.0'
 }
 
 repositories {
@@ -9,7 +10,8 @@ repositories {
 }
 
 ext.appNames = [
-    [ 'main', 'main' ]
+    [ 'main', 'main' ],
+    [ 'site-mgr', 'SiteManager']
 ]
 
 ext.jarApp = [
@@ -21,8 +23,11 @@ ext.webpackSetting = [
     gradleBuildJs: 'gradle-build.js',
     libraryTarget: 'umd',
     mainSrcTemplate: 'src/php/client-resources.php',
-    mainStyleSrc: 'src/style/main.scss',
+    mainStyleSrc: 'src/site/style/main.scss',
     mainHtmlOutput: 'client-resources.php',
+    siteMgrSrcTemplate: 'src/php/site-mgr-client-resources.php',
+    siteMgrStyleSrc: 'src/site-manager/style/site-mgr-main.scss',
+    siteMgrHtmlOutput: 'site-mgr-client-resources.php',
     jsProgramDir: 'js',
     cssDir: 'css'
 ]
@@ -43,6 +48,8 @@ kotlin {
     jvm()
 
     js {
+        compilations.create('siteMgr')
+
         browser {
             webpackTask {
                 output.libraryTarget = webpackSetting.libraryTarget
@@ -60,15 +67,13 @@ kotlin {
         }
         jsCommon {
             dependsOn commonMain
-        }
-        jsMain {
-            dependsOn jsCommon
             dependencies {
                 implementation kotlin('stdlib-js')
                 implementation( 
                     'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3')
                 compileOnly npm('html-webpack-plugin', '^4.0.2')
                 compileOnly npm('webpack-cdn-plugin', '>=3.3.1')
+                compileOnly npm('html-webpack-skip-assets-plugin', '>=1.0.1')
                 compileOnly npm('mini-css-extract-plugin', '>=1.4.0')
                 compileOnly npm('@fortawesome/fontawesome-free', '>=5.15.1')
                 compileOnly npm('bootstrap', '>=4.5.3')
@@ -76,7 +81,14 @@ kotlin {
                 compileOnly npm('sass', '>=1.32.8')
                 compileOnly npm('css-loader', '>=5.2.0')
                 compileOnly npm('sass-loader', '^10.1.1')
+                compileOnly npm('@popperjs/core', '>=2.9.2')
             }
+        }
+        jsMain {
+            dependsOn jsCommon
+        }
+        jsSiteMgr {
+            dependsOn jsCommon
         }
     }
 }
@@ -159,17 +171,30 @@ task webpackGradleBuild {
             webpackSetting.mainSrcTemplate) 
         def mainStyleTemplate = new File(projectDir,
             webpackSetting.mainStyleSrc)
+
+        def siteMgrSrcTemplate = new File(projectDir,
+            webpackSetting.siteMgrSrcTemplate) 
+        def siteMgrStyleTemplate = new File(projectDir,
+            webpackSetting.siteMgrStyleSrc)
+
+
         def binding = [
             config: """{
                 |  projectDir: '${projectDir}',
                 |  libraryTarget: '${webpackSetting.libraryTarget}',
                 |  jsRootDir: '${jsRoot}',
                 |  mainHtmlOutput: '${webpackSetting.mainHtmlOutput}',
+                |  siteMgrHtmlOutput: '${webpackSetting.siteMgrHtmlOutput}',
                 |  programDir: '${webpackSetting.jsProgramDir}',
                 |  cssDir: '${webpackSetting.cssDir}',
                 |  mainProgramName: '${appNames[0][0]}',
                 |  mainSrcTemplate: '${mainSrcTemplate}',
-                |  mainSrcCss: '${mainStyleTemplate}'
+                |  mainSrcCss: '${mainStyleTemplate}',
+                |  siteMgrProgramName: '${appNames[1][0]}',
+                |  siteMgrSrcTemplate: '${siteMgrSrcTemplate}',
+                |  siteMgrSrcCss: '${siteMgrStyleTemplate}',
+                |  siteMgrDevEntry: '${siteMgrDceDevOutput}',
+                |  siteMgrEntry: '${siteMgrDceOutput}'
                 |}""".stripMargin()
         ]
         def tmp = new groovy.text.StreamingTemplateEngine()
@@ -181,10 +206,26 @@ task webpackGradleBuild {
 }
 
 def setupWebpack(def webpackTask) {
-    webpackTask.inputs.files webpackSetting.mainSrcTemplate,
-        webpackSetting.mainStyleSrc
+
+    def mainSrcTemplate = new File(projectDir,
+        webpackSetting.mainSrcTemplate) 
+    def mainStyleTemplate = new File(projectDir,
+        webpackSetting.mainStyleSrc)
+    def siteMgrSrcTemplate = new File(projectDir,
+        webpackSetting.siteMgrSrcTemplate) 
+    def siteMgrStyleTemplate = new File(projectDir,
+        webpackSetting.siteMgrStyleSrc)
+
+    webpackTask.inputs.files mainSrcTemplate,
+        mainStyleTemplate,
+        siteMgrSrcTemplate,
+        siteMgrStyleTemplate
+
+    webpackTask.inputs.files files("${projectDir}/webpack.config.d/*.js")
     def distDir = getDistributionDir()
-    webpackTask.outputs.files new File(distDir, webpackSetting.mainHtmlOutput)
+    webpackTask.outputs.files new File(distDir, webpackSetting.mainHtmlOutput),
+        new File(distDir, webpackSetting.siteMgrHtmlOutput)
+
 
     webpackTask.dependsOn webpackGradleBuild
 }
@@ -214,7 +255,8 @@ def getDistributionDir() {
  */
 def getWebpackHtmlOutput() {
     return [
-        new File(getDistributionDir(), webpackSetting.mainHtmlOutput)
+        new File(getDistributionDir(), webpackSetting.mainHtmlOutput),
+        new File(getDistributionDir(), webpackSetting.siteMgrHtmlOutput)
     ]
 }
 
@@ -255,5 +297,113 @@ jsResourcesForSite.dependsOn tasks.getByPath(
 
 buildSite.dependsOn jsResourcesForSite
 
+/** get developement dce name as string */
+def getDceDevDir() {
+    def browserClass = null
+    browserClass = 
+        org.jetbrains.kotlin.gradle.targets.js.subtargets.KotlinBrowserJs 
+    return browserClass.DCE_DEV_DIR
+}
+
+/** get dce name as string*/
+def getDceDir() {
+    def browserClass = null
+    browserClass = 
+        org.jetbrains.kotlin.gradle.targets.js.subtargets.KotlinBrowserJs 
+    return browserClass.DCE_DIR
+}
+/** create npm project */
+def createNpmProject(def compilation) {
+    def result = null
+    result = new org.jetbrains.kotlin.gradle.targets.js.npm.NpmProject(
+        compilation)
+    return result
+}
+
+
+/**
+ * setup dce task
+ */
+def setupDceTask(def dceTask,
+    def compilation,
+    def dceDir) {
+    dceTask.kotlinFilesOnly = true
+    dceTask.classpath = project.configurations.getByName(
+        compilation.runtimeDependencyConfigurationName)
+    if (dceTask.dceOptions.outputDirectory != null) {
+        dceTask.destinationDir = new File(
+            dceTask.dceOptions.outputDirectory)
+    } else {
+        def npmProject = createNpmProject(compilation)
+        dceTask.destinationDir = new File(npmProject.dir, dceDir)
+    }
+    dceTask.source(compilation.compileKotlinTask.outputFile)
+    dceTask.dependsOn compilation.compileKotlinTask
+}
+
+
+task siteMgrDce(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to site manager js file'
+    def dceDir = getDceDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.siteMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+task siteMgrDceDev(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to site manager js file'
+    def dceDir = getDceDevDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.siteMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+/**
+ * get mswp status output directory
+ */
+def getSiteMgrDceOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.siteMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(siteMgrDce.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+/**
+ * get locale setup output directory
+ */
+def getSiteMgrDceDevOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.siteMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(siteMgrDceDev.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+jsBrowserProductionWebpack.inputs.files getSiteMgrDceOutput()
+jsBrowserDevelopmentWebpack.inputs.files getSiteMgrDceDevOutput()
+
+jsBrowserProductionWebpack.dependsOn siteMgrDce
+jsBrowserDevelopmentWebpack.dependsOn siteMgrDceDev
+
+
+
+task siteMgrMsgFmt(type: net.oc_soft.MsgFmtTask) {
+    srcDir = new File("${projectDir}/src/site-manager/contents/i18n")
+    dstDir = new File("${projectDir}/src/site-manager/i18n")
+}
+
+
+buildSite.dependsOn siteMgrMsgFmt
 
 // vi: se ts=4 sw=4 et:
