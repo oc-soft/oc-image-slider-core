@@ -5,6 +5,9 @@ import kotlin.js.Promise
 import kotlin.collections.Iterable
 import kotlin.collections.List
 import kotlin.collections.toList
+import kotlin.collections.Map
+import kotlin.collections.ArrayList
+import kotlin.collections.mapOf
 
 import kotlin.text.toDouble
 
@@ -25,12 +28,34 @@ import org.w3c.dom.url.URLSearchParams
 import org.w3c.fetch.RequestInit
 
 import popper.Popper
-
+import jQuery
 /**
  * href registration
  */
 class Registration {
     
+
+    /**
+     * class instance
+     */
+    companion object {
+
+        /**
+         * encode json
+         */
+        fun toJsonObject(queryOptions: Array<Map<String, String>>): Any  {
+            val result = Array<Any>(queryOptions.size) {
+                val map = queryOptions[it]
+                val item : dynamic = object { }
+                map.forEach {
+                    item[it.key] = it.value
+                }
+                item
+            }
+            return result
+        }
+    }
+
     /**
      * get table element for  each accesses 
      */
@@ -51,7 +76,7 @@ class Registration {
         }
 
     /**
-     * narrow down menu item
+     * order menu item
      */
     val orderUi: HTMLElement?
         get() {
@@ -70,13 +95,250 @@ class Registration {
         }
 
     /**
-     * narrow down menu 
+     * order menu 
      */
     val orderMenuUi: HTMLElement?
         get() {
             return document.querySelector(
                 ".dropdown-ex-menu.order") as HTMLElement?
         }
+    
+    /**
+     * user interface to show record input modal
+     */
+    val visibleRecordInputModalUi: HTMLElement?
+        get() {
+            return document.querySelector(
+                ".visible-href-input") as HTMLElement?
+        }
+
+    /**
+     * href record input modal element
+     */
+    val recordInputModalUi: HTMLElement?
+        get() {
+            return document.querySelector(
+                ".modal.href-registration") as HTMLElement? 
+        }
+    /**
+     * get href user interface in record input modal
+     */
+    val recordInputHrefUi: HTMLInputElement?
+        get() {
+            val modal = recordInputModalUi
+            var result: HTMLInputElement? = null
+            if (modal != null) {
+                result = modal.querySelector("input[name='href']")
+                    as HTMLInputElement?
+            }
+            return result
+        }
+
+    /**
+     * get id input user interface in record input modal
+     */
+    val recordInputIdUi: HTMLInputElement?
+        get() {
+            val modal = recordInputModalUi
+            var result: HTMLInputElement? = null
+            if (modal != null) {
+                result = modal.querySelector("input[name='id']")
+                    as HTMLInputElement?
+            }
+            return result
+        }
+
+    /**
+     * get selector input user interface in record input modal
+     */
+    val recordInputSelectorUi: HTMLInputElement?
+        get() {
+            val modal = recordInputModalUi
+            var result: HTMLInputElement? = null
+            if (modal != null) {
+                result = modal.querySelector("input[name='selector']")
+                    as HTMLInputElement?
+            }
+            return result
+        }
+    /**
+     * get href in record input modal
+     */
+    var recordInputHref: String?
+        get() {
+            var result: String? = null
+            val ui = recordInputHrefUi
+            if (ui != null) {
+                result = ui.value
+            }
+            return result 
+        }
+        set(value) {
+            val ui = recordInputHrefUi
+            if (ui != null) {
+                ui.value = if (value != null) {
+                    value
+                } else {
+                    ""
+                }
+            }
+        }
+
+    /**
+     * get id in record input modal
+     */
+    var recordInputId: String?
+        get() {
+            var result: String? = null
+            val ui = recordInputIdUi
+            if (ui != null) {
+                result = ui.value
+            }
+            return result 
+        }
+        set(value) {
+            val ui = recordInputIdUi
+            if (ui != null) {
+                ui.value = if (value != null) {
+                    value
+                } else {
+                    ""
+                }
+            }
+        }
+    /**
+     * selector in record input modal
+     */
+    var recordInputSelector: String?
+        get() {
+            var result: String? = null
+            val ui = recordInputSelectorUi
+            if (ui != null) {
+                result = ui.value
+            }
+            return result 
+        }
+        set(value) {
+            val ui = recordInputSelectorUi
+            if (ui != null) {
+                ui.value = if (value != null) {
+                    value
+                } else {
+                    ""
+                }
+            }
+        }
+
+
+
+    /**
+     * button to add href record
+     */
+    val buttonToAddRecordUi: HTMLElement?
+        get() {
+            return document.querySelector(
+                ".add-record") as HTMLElement?
+        }
+    /**
+     * sort icon map
+     */
+    val sortIconMap: Map<String, String> by lazy {
+        mapOf(
+            "icon-no-sort" to "icon-sort-asc",
+            "icon-sort-asc" to "icon-sort-desc",
+            "icon-sort-desc" to "icon-no-sort") 
+    }
+
+    /**
+     * sort icon to order map
+     */
+    val sortIconOrderMap: Map<String, String?> by lazy {
+        mapOf(
+            "icon-no-sort" to null,
+            "icon-sort-asc" to "ASC",
+            "icon-sort-desc" to "DESC")
+    }
+
+    /**
+     * narrow down user iterface items
+     */
+    val narrowDownItemUiList: Array<HTMLElement>? 
+        get() {
+            val narrowDownMenuUi = this.narrowDownMenuUi
+            var result: Array<HTMLElement>? = null 
+            
+            if (narrowDownMenuUi != null) {
+                val items = narrowDownMenuUi.querySelectorAll("[data-name]") 
+                result = Array<HTMLElement>(items.length) {
+                    items[it] as HTMLElement
+                }
+            } 
+            return result
+        }
+    /**
+     * order user iterface items
+     */
+    val orderItemUiList: Array<HTMLElement>?
+        get() {
+            val orderMenuUi = this.orderMenuUi
+            var result: Array<HTMLElement>? = null 
+            
+            if (orderMenuUi != null) {
+                val items = orderMenuUi.querySelectorAll("[data-name]") 
+                result = Array<HTMLElement>(items.length) {
+                    items[it] as HTMLElement
+                }
+            } 
+            return result
+        }
+    
+    /**
+     * narrow down items
+     */
+    val narrowDownItems: Array<Map<String, String>> 
+        get() {
+            val itemList = ArrayList<Map<String, String>>()
+            val uiItems = narrowDownItemUiList
+            if (uiItems != null) {
+                uiItems.forEach {
+                    val strItem = it.innerHTML
+                    if (strItem.isNotEmpty()) {
+                        itemList.add(
+                            mapOf("column" to it.dataset["name"]!!,
+                                "pattern" to strItem))  
+                    }
+                }
+            }
+            return Array<Map<String, String>>(itemList.size) { itemList[it] }
+        }
+
+    /**
+     * order items
+     */
+    val orderItems: Array<Map<String, String>> 
+        get() {
+            val itemList = ArrayList<Map<String, String>>()
+            val uiItems = orderItemUiList
+            if (uiItems != null) {
+                uiItems.forEach {
+                    val iconContainer = it.querySelector("span") as HTMLElement
+                    val icon = getSortIcon(iconContainer) 
+                    val sortKind = sortIconOrderMap[icon]
+                    if (sortKind != null) {
+                        itemList.add(   
+                            mapOf(
+                                "column" to it.dataset["name"]!!,
+                                "sort" to sortKind))
+                    }
+                }
+            }
+            return Array<Map<String, String>>(itemList.size) { itemList[it] }
+        }
+
+    /**
+     * last query option. it is valid only when menu is opening
+     */
+    var lastQueryOption: Array<Map<String, String>>? = null
 
 
     /**
@@ -104,6 +366,24 @@ class Registration {
      * handler to start move order item
      */
     var orderToStartMoveHdlr: ((Event)->Unit)? = null
+
+    /**
+     * handle event to change sort order
+     */
+    var sortOrderHdlr: ((Event)->Unit)? = null
+
+    /**
+     * handle event to show href input modal
+     */
+    var visibleInputModalHdlr: ((Event)->Unit)? = null
+
+ 
+    /**
+     * handle event to add record
+     */
+    var addRecordHdlr: ((Event)->Unit)? = null
+
+    
 
     /**
      * ghost element
@@ -137,6 +417,23 @@ class Registration {
             return result
         }
 
+    /**
+     * items to manipulate sort kind
+     */
+    val orderSortItems: Array<HTMLElement>?
+        get() {
+            val orderMenuItems = this.orderMenuItems
+            var result: Array<HTMLElement>? = null
+
+            if (orderMenuItems != null) {
+               result = Array(orderMenuItems.size) {
+                    orderMenuItems[it].children[1] as HTMLElement
+               }
+            }
+
+            return result
+        }
+
 
 
     /**
@@ -149,8 +446,17 @@ class Registration {
         val orderToStartMoveHdlr: (Event)->Unit = {
             handleStartToMoveItem(it)
         }
+        val sortOrderHdlr: (Event)->Unit = {
+            handleSortOrderEvent(it)
+        } 
+        val visibleInputModalHdlr: (Event)->Unit = {
+            handleToShowRecordInput(it) 
+        }
+        val addRecordHdlr: (Event)->Unit =  {
+            handleToAddRecord(it)
+        }
 
-    
+ 
 
         var boundElements = false
         val narrowDownUi = this.narrowDownUi
@@ -179,9 +485,33 @@ class Registration {
                 orderToStartMoveHdlr)
             boundElements = true
         }
+        val orderSortItems = this.orderSortItems
+        if (orderSortItems != null) {
+
+            orderSortItems.forEach {
+                it.addEventListener("click", sortOrderHdlr)
+            }
+            boundElements = true
+        }
+        val visibleRecordInputModalUi = this.visibleRecordInputModalUi 
+        if (visibleRecordInputModalUi != null) {
+            visibleRecordInputModalUi.addEventListener(
+                "click", visibleInputModalHdlr)
+            boundElements = true
+        }
+        val buttonToAddRecordUi = this.buttonToAddRecordUi
+        if (buttonToAddRecordUi != null) {
+            buttonToAddRecordUi.addEventListener(
+                "click", addRecordHdlr)
+            boundElements = true
+        }
+
         if (boundElements) {
             popupMenuHdlr = clickHdlr
             this.orderToStartMoveHdlr = orderToStartMoveHdlr
+            this.sortOrderHdlr = sortOrderHdlr
+            this.visibleInputModalHdlr = visibleInputModalHdlr
+            this.addRecordHdlr = addRecordHdlr
         }
     }
 
@@ -208,11 +538,30 @@ class Registration {
             }
             popupMenuHdlr = null
         }
+        if (sortOrderHdlr != null) {
+            orderSortItems!!.forEach {
+                it.removeEventListener("click", sortOrderHdlr)
+            }
+            sortOrderHdlr = null
+        }
+
         if (orderToStartMoveHdlr != null) {
             orderMenuUi!!.removeEventListener("mousedown",
                 orderToStartMoveHdlr)
+            orderToStartMoveHdlr = null
         }
-     }
+        if (visibleInputModalHdlr != null) {
+            visibleRecordInputModalUi!!.removeEventListener(
+                "click", visibleInputModalHdlr)
+            visibleInputModalHdlr = null
+        }
+        if (addRecordHdlr != null) {
+            buttonToAddRecordUi!!.removeEventListener(
+                "click", addRecordHdlr)
+            addRecordHdlr = null
+        }
+
+    }
 
     /**
      * popup menu hdlr
@@ -222,21 +571,42 @@ class Registration {
             event.currentTarget as HTMLElement)
         
         if (popperInstance != null) {
+            
             val popperElem = popperInstance.state.elements.popper
             if (!popperElem.classList.contains("visible")) {
-                popperElem.classList.add("visible")
-                window.setTimeout({
-                    val closeHdlr: (Event)->Unit = {
-                        handleToCloseMenuHdlr(it)
-                    }
-                    window.addEventListener("click", closeHdlr)
-                    this.closeMenuHdlr = closeHdlr
-                }, 100)
+                if (closeMenuHdlr == null) {
+                    popperElem.classList.add("visible")
+                    lastQueryOption = getQueryOption(
+                        popperInstance.state.elements.reference as HTMLElement)
+                    window.setTimeout({
+                        val closeHdlr: (Event)->Unit = {
+                            handleToCloseMenuHdlr(it)
+                        }
+                        window.addEventListener("click", closeHdlr)
+                        this.closeMenuHdlr = closeHdlr
+                    }, 100)
+                }
             } else {
                 closeMenu(popperElem)
             }
             event.preventDefault()
         }
+    }
+
+
+    /**
+     * get database query option
+     */
+    fun getQueryOption(element: HTMLElement): Array<Map<String, String>>? {
+
+        var result = when(element) {
+            narrowDownUi,
+            narrowDownMenuUi -> narrowDownItems
+            orderUi,
+            orderMenuUi -> orderItems
+            else -> null
+        } 
+        return result 
     }
 
 
@@ -249,6 +619,11 @@ class Registration {
         if (openedMenu != null) {
             if (!isOwnerItem(openedMenu, event.target as HTMLElement)) {
                 closeMenu(openedMenu)
+                val queryOption = getQueryOption(openedMenu)
+                
+                updateTableIfQueryOptionIsNotEquals(
+                    lastQueryOption, queryOption)
+                lastQueryOption = null
             }
         }
     }
@@ -260,7 +635,18 @@ class Registration {
         window.removeEventListener("click", closeMenuHdlr) 
         closeMenuHdlr = null
         openedMenu.classList.remove("visible") 
-     }
+    }
+
+    /**
+     * update table if query option is not equals
+     */
+    fun updateTableIfQueryOptionIsNotEquals(
+        queryA: Array<Map<String, String>>?,
+        queryB: Array<Map<String, String>>?) {
+        if (!(queryA contentEquals queryB)) {
+           syncTableWithSite() 
+        }
+    }
 
     /**
      * get popper instance from a popper html element
@@ -354,8 +740,13 @@ class Registration {
      */
     fun handleStartToMoveItem(event: Event) {
 
-        val target = findTableRow(event.target as HTMLElement)
-
+        
+        val target = if (isSorterSelector(event.target as HTMLElement)) {
+            null
+        } else {
+            findTableRow(event.target as HTMLElement)
+        }
+        
         if (target != null) {
             val mouseEvent = event as MouseEvent
             val ghostNode = target.cloneNode(true) as HTMLElement
@@ -371,6 +762,25 @@ class Registration {
         }
     }
 
+    /**
+     * you get true if element is the element to select sort kind.
+     */
+    fun isSorterSelector(element: HTMLElement): Boolean {
+        val orderSortItems = orderSortItems
+        var result = false
+        if (orderSortItems != null) {
+            result = orderSortItems.indexOf(element) >= 0 
+            if (!result) {
+                val parent = element.parentElement
+                if (parent != null && parent != window) {
+                    result = isSorterSelector(parent as HTMLElement)
+                }
+            }
+        }
+        
+        return result
+    }
+      
 
     /**
      * find table row element with traversing up html dom tree
@@ -587,8 +997,6 @@ class Registration {
     fun handleEventToReleaseButton(event: Event) {
 
         val ghostElement = this.ghostElement
-
-
         clearInsertionMarker() 
         if (ghostElement != null) {
             updateOrderMenu(
@@ -623,8 +1031,12 @@ class Registration {
                 orderMenuItems[oldIndex] 
             }
             if (movementItem != null) {
-                val refNode = orderMenuItems[newIndex] 
-                refNode.parentNode!!.insertBefore(movementItem, refNode)
+                if (newIndex < orderMenuItems.size) {
+                    val refNode = orderMenuItems[newIndex] 
+                    refNode.parentNode!!.insertBefore(movementItem, refNode)
+                } else {
+                    movementItem.parentNode!!.appendChild(movementItem)
+                }
             }
         } 
         
@@ -703,6 +1115,172 @@ class Registration {
         return result
     }
 
+    /**
+     * handle an event to sort items
+     */
+    fun handleSortOrderEvent(event: Event) {
+        val element = event.currentTarget as HTMLElement
+
+        val iconContainer = element.querySelector("span") as HTMLElement
+        val currentIcon = getSortIcon(iconContainer)
+
+        iconContainer.classList.remove(currentIcon)
+        iconContainer.classList.add(sortIconMap[currentIcon]!!)
+    }
+
+    /**
+     * handle the event to show record input
+     */
+    fun handleToShowRecordInput(event: Event) {
+        val recordInput = this.recordInputModalUi
+        if (recordInput != null) {
+            val modalObj = jQuery(recordInput)
+            js("modalObj.modal('show')")
+        } 
+        event.preventDefault()
+    }
+
+    /**
+     * handle to add record input
+     */
+    fun handleToAddRecord(event: Event) {
+        val recordInput = this.recordInputModalUi
+        if (recordInput != null) {
+
+            val inputs = recordInput.querySelectorAll("input")
+            
+            var allValid = true
+            for (idx in 0 until inputs.length) {
+                val valid = (inputs[idx] as HTMLInputElement).reportValidity()
+                if (!valid) {
+                    allValid = valid
+                }
+            }
+            if (allValid) {
+                val modalObj = jQuery(recordInput)
+                js("modalObj.modal('hide')")
+                insertHrefRecordIntoSite().then({
+                    if (it) {
+                        clearHrefRecordInput()
+                        syncTableWithSite()
+                    }
+                })
+            }
+        }
+        event.preventDefault()
+    }
+
+    /**
+     * clear href record in modal
+     */
+    fun clearHrefRecordInput() {
+        recordInputHref = null
+        recordInputId = null 
+        recordInputSelector = null
+    }
+
+    /**
+     * get sort icon from html element
+     */
+    fun getSortIcon(element: HTMLElement): String {
+        var result: String? = null
+        
+        sortIconMap.forEach findres@ { 
+            if (element.classList.contains(it.key)) {
+                result = it.key 
+                return@findres
+            }
+        }
+        return result!!
+    }
+
+    /**
+     * insert href into site
+     */
+    fun insertHrefRecordIntoSite(): Promise<Boolean> {
+        val href = recordInputHref
+        val id = recordInputId
+        val selector = recordInputSelector
+        return if (id != null 
+            && selector != null
+            && href != null && href.isNotEmpty()) {
+            insertHrefRecordIntoSite(href, id, selector)
+        } else {
+            Promise<Boolean> {
+                resolve, reject ->
+                resolve(false)
+            }
+        }
+    }
+
+
+    /**
+     * insert href into site database
+     */
+    fun insertHrefRecordIntoSite(
+        href: String,
+        id: String,
+        selector: String): Promise<Boolean>  {
+       
+        val body = URLSearchParams()
+        body.append("href-access", "")
+        body.append("insert", "")
+        body.append("href", href)
+        body.append("id", id)
+        body.append("selector", selector)
+        
+        return window.fetch("/mgr-rest.php",
+           RequestInit(
+                method = "POST",
+                body = body)).then({
+            it.json()
+        }).then({
+            val anObj: dynamic = it
+            anObj["href-id"] != null
+        })
+    }
+
+
+    /**
+     * synchronize table with site database
+     */
+    fun syncTableWithSite() {
+        readHrefListFromSite().then({
+           updateTable(it) 
+        })
+    }
+
+    /**
+     * read href list from site
+     */
+    fun readHrefListFromSite(): Promise<Array<Array<String>>> {
+        val body = URLSearchParams()
+        body.append("href-access", "")
+        body.append("list-href-selector", "")
+        val narrowDownItems = this.narrowDownItems
+        val orderItems = this.orderItems
+
+        if (narrowDownItems.size > 0) {
+            body.append("narrow-down", JSON.stringify(
+                toJsonObject(narrowDownItems)))
+        }
+        if (orderItems.size > 0) {
+            body.append("order-by", JSON.stringify(
+                toJsonObject(orderItems)))
+        }
+ 
+        return window.fetch("/mgr-rest.php",
+           RequestInit(
+                method = "POST",
+                body = body)).then({
+            it.json()
+        }).then({
+            val anObj: dynamic = it
+            anObj["href-list-selector"] as Array<Array<String>>
+        })
+ 
+    }
+
  
     /**
      * update access list user interface
@@ -735,9 +1313,6 @@ class Registration {
             }  
         }
     }
-
-
-    
 }
 
 // vi: se ts=4 sw=4 et:

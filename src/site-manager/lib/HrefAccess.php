@@ -250,11 +250,12 @@ class HrefAccess {
 
         if ($narrow_down) {
             $narrow_downs = [];
-            foreach ($narrow_down as $key => $pattern) {
-                $narrow_downs[] = sprintf("%s LIKE '%s'", $key, $pattern);
+            foreach ($narrow_down as $entry) {
+                $narrow_downs[] = sprintf("%s LIKE '%s'", 
+                    $entry['column'], $entry['pattern']);
             }
             $where_clauses = sprintf(
-                'WHERE %s', implode(' AND ', $narrow_down_closeses));
+                'WHERE %s', implode(' AND ', $narrow_downs));
 
         } else {
             $where_clauses = '';
@@ -262,11 +263,13 @@ class HrefAccess {
 
         if ($order_by) {
             $order_by_clauses_elems = [];
-            foreach ($order_by as $key => $order) {
-                if (strcasecmp($order, 'DESC') == 0) {
-                    $order_by_clauses_elems[] = sprintf('%s DESC', $key);
+            foreach ($order_by as $entry) {
+                if (strcasecmp($entry['sort'], 'DESC') == 0) {
+                    $order_by_clauses_elems[] = sprintf('%s DESC',
+                        $entry['column']);
                 } else {
-                    $order_by_clauses_elems[] = sprintf('%s ASC', $key);
+                    $order_by_clauses_elems[] = sprintf('%s ASC', 
+                        $entry['column']);
                 }
             }
             $order_by_clauses = sprintf(
@@ -277,7 +280,7 @@ class HrefAccess {
         }
 
         $query = implode(' ',
-            [$list_href, $where_clausses, $order_by_clauses]);
+            [$list_href, $where_clauses, $order_by_clauses]);
 
         $query_res = $this->get_client()->query($query);
 
@@ -294,6 +297,82 @@ class HrefAccess {
         }
         return $result;
     }
+    /**
+     *  list href selector
+     */
+    function list_href_selector(
+        $narrow_down,
+        $order_by) {
+
+        $db_commands = MgrConfig::$instance->get_db_commands();
+
+        $db_name = $db_commands['db-name'];
+        $prefix = $db_commands['prefix'];
+        
+        $list_href = $db_commands['list-href-selector']['query'];
+        $list_href = implode('', $list_href);
+        $list_href = sprintf($list_href, $db_name, $prefix);
+
+        $column_replace = $db_commands['list-href-selector']['column-replace'];
+       
+
+        if ($narrow_down) {
+            $narrow_downs = [];
+            foreach ($narrow_down as $entry) {
+                $column = $entry['column'];
+                if (array_key_exists($column, $column_replace)) {
+                    $column = sprintf($column_replace[$column],
+                        $db_name, $prefix); 
+                }
+                $narrow_downs[] = sprintf("%s LIKE '%s'", 
+                    $column, $entry['pattern']);
+            }
+            $where_clauses = sprintf(
+                'AND %s', implode(' AND ', $narrow_downs));
+
+        } else {
+            $where_clauses = '';
+        }
+
+        if ($order_by) {
+            $order_by_clauses_elems = [];
+            foreach ($order_by as $entry) {
+                if (strcasecmp($entry['sort'], 'DESC') == 0) {
+                    $order_by_clauses_elems[] = sprintf('%s DESC',
+                        $entry['column']);
+                } else {
+                    $order_by_clauses_elems[] = sprintf('%s ASC', 
+                        $entry['column']);
+                }
+            }
+            $order_by_clauses = sprintf(
+                'ORDER BY %s',
+                implode(',', $order_by_clauses_elems));
+        } else {
+            $order_by_clauses = '';
+        }
+
+        $query = implode(' ',
+            [$list_href, $where_clauses, $order_by_clauses]);
+
+        $query_res = $this->get_client()->query($query);
+
+        if ($query_res) {
+            $result = [];
+            while (TRUE) {
+                $row = $query_res->fetch_array(MYSQLI_NUM);
+                if ($row) {
+                    $result[] = $row;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            error_log($this->get_client()->error);
+        }
+        return $result;
+    }
+
 
     /**
      * handle insert ajax request
@@ -382,11 +461,40 @@ class HrefAccess {
      * handle list href 
      */
     function handle_list_href() {
+        $narrow_down = NULL;
+        $order_by = NULL;
+        if (isset($_REQUEST['narrow-down'])) {
+            $narrow_down = json_decode($_REQUEST['narrow-down'], TRUE);
+        }
+        if (isset($_REQUEST['order-by'])) {
+            $order_by = json_decode($_REQUEST['order-by'], TRUE);
+        }
         $href_list = $this->list_href(
-            $_REQUEST['narrow-down'], 
-            $_REQUEST['order-by']);
+            $narrow_down, $order_by);
         if (isset($href_list)) {
             $response = ['href-list' => $href_list];
+        } else {
+            $response = ['status' => FALSE];
+        }
+        return $response;
+    }
+
+    /**
+     * handle list href and selector
+     */
+    function handle_list_href_selector() {
+        $narrow_down = NULL;
+        $order_by = NULL;
+        if (isset($_REQUEST['narrow-down'])) {
+            $narrow_down = json_decode($_REQUEST['narrow-down'], TRUE);
+        }
+        if (isset($_REQUEST['order-by'])) {
+            $order_by = json_decode($_REQUEST['order-by'], TRUE);
+        }
+        $href_list_selector = $this->list_href_selector(
+            $narrow_down, $order_by);
+        if (isset($href_list_selector)) {
+            $response = ['href-list-selector' => $href_list_selector];
         } else {
             $response = ['status' => FALSE];
         }
@@ -409,6 +517,8 @@ class HrefAccess {
             $result = $this->handle_list_access();
         } else if (isset($_REQUEST['list-href'])) {
             $result = $this->handle_list_href();
+        } else if (isset($_REQUEST['list-href-selector'])) {
+            $result = $this->handle_list_href_selector();
         }
         return $result;
     }

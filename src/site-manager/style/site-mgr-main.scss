@@ -15,15 +15,45 @@ div.dropdown-ex-menu {
     tbody {
       tr {
         &.insertion-before {
-          border-top: 1px solid black;
+          border-top: $border-width dashed $border-color;
         }
         &.insertion-after {
-          border-bottom: 1px solid black;
+          border-bottom: $border-width dashed $border-color;
         }
       }
     }
   }
+
+
+  
+  &.order tbody tr {
+    td:nth-child(2)  {
+      width: 2em; 
+      cursor: pointer;
+    }
+    td:first-child {
+      cursor: grab;
+    }
+  }
+  tbody tr {
+    td {
+      padding: 0 map-get($spacers, 1);
+    }
+    td:first-child {
+      padding-left: map-get($spacers, 2);
+    }
+    td:last-child {
+      padding-right: map-get($spacers, 2);
+    }
+  }
 }
+
+body>tr {
+  td {
+    cursor: grabbing;
+  }
+}
+
 
 [data-popper-reference-hidden] {
   visibility: hidden;
@@ -39,16 +69,29 @@ div.dropdown-ex-menu {
   }
 }
 
+.icon-no-sort::before {
+  font-family: "Font Awesome 5 Free"; font-weight: 900; content: "\f068";
+}
+
+.icon-sort-asc::before {
+  font-family: "Font Awesome 5 Free"; font-weight: 900; content: "\f884";
+}
+
+.icon-sort-desc::before {
+  font-family: "Font Awesome 5 Free"; font-weight: 900; content: "\f160";
+}
+
+
 @media (min-width: 576px) {
   .mx-xs-1 {
-    margin-left: ($spacer * .25) !important;
-    margin-right: ($spacer * .25) !important;
+    margin-left: map-get($spacers, 1) !important;
+    margin-right: map-get($spacers, 1) !important;
   }  
   .mr-xs-1 {
-    margin-right: ($spacer * .25) !important;
+    margin-right: map-get($spacers, 1) !important;
   }
   .ml-xs-1 {
-    margin-right: ($spacer * .25) !important;
+    margin-right: map-get($spacers, 1) !important;
   }
 }
 

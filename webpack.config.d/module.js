@@ -13,6 +13,11 @@ class Module {
           commonjs: '@popperjs/core',
           commonjs2: '@popperjs/core',
           root: 'Popper'
+      },
+      jquery: {
+        commonjs: 'jquery',
+        commonjs2:'jquery',
+        root: 'jQuery'
       }
     })
   }
