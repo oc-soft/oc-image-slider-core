@@ -52,7 +52,35 @@ class Db {
                 }
             }
         }
+        $this->init_tables();
         return $result;
+    }
+
+    /**
+     * initialize tables
+     */
+    function init_tables() {
+        $config = MgrConfig::$instance;
+        $commands = $config->get_db_commands();
+
+        $prefix = $commands['prefix'];
+        $db_name = $commands['db-name'];
+
+        $init_commands = $commands['init-tables'];
+        $stmt = $this->get_client()->stmt_init();
+        foreach ($init_commands as $init_command) {
+            $command = $init_command["command"];
+            $query = $commands[$command]['query'];
+            $query = implode('', $query);
+            $query = sprintf($query, $db_name, $prefix);
+            $stmt->prepare($query); 
+            foreach ($init_command['params'] as $param) {
+                $stmt->bind_param($init_command['bind-types'], ... $param);
+                $stmt->execute();
+            }    
+            
+        }
+        $stmt->close();
     }
 
     /**

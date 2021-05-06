@@ -32,7 +32,7 @@ class HrefAccess {
     /**
      * insert href
      */
-    function insert_href($href, $id, $query_selector) {
+    function insert_href($href, $query_selector) {
         $db_commands = MgrConfig::$instance->get_db_commands();
 
         $db_name = $db_commands['db-name'];
@@ -56,7 +56,7 @@ class HrefAccess {
         $stmt->prepare($insert_href);
 
         if ($stmt->errno == 0) {
-            $stmt->bind_param('ss', $href, $id);
+            $stmt->bind_param('s', $href);
         }
         if ($stmt->errno == 0) {
             $stmt->execute();
@@ -66,7 +66,7 @@ class HrefAccess {
             $stmt->prepare($find_href_id);
         }
         if ($stmt->errno == 0) {
-            $stmt->bind_param('ss', $href, $id);
+            $stmt->bind_param('s', $href);
         }
         if ($stmt->errno == 0) {
             $b_state = $stmt->execute();
@@ -102,7 +102,7 @@ class HrefAccess {
     /**
      * find href id
      */
-    function find_href_id($href, $id) {
+    function find_href_id($href) {
         $db_commands = MgrConfig::$instance->get_db_commands();
 
         $db_name = $db_commands['db-name'];
@@ -117,7 +117,7 @@ class HrefAccess {
 
         $stmt->prepare($find_href_id);
         if ($stmt->errno == 0) {
-            $stmt->bind_param('ss', $href, $id);
+            $stmt->bind_param('s', $href);
         }
         if ($stmt->errno == 0) {
             $b_state = $stmt->execute();
@@ -139,7 +139,7 @@ class HrefAccess {
     /**
      * find query selector
      */
-    function find_selector($href, $id) {
+    function find_selector($href) {
         $db_commands = MgrConfig::$instance->get_db_commands();
 
         $db_name = $db_commands['db-name'];
@@ -159,7 +159,7 @@ class HrefAccess {
 
         $stmt->prepare($find_href_id);
         if ($stmt->errno == 0) {
-            $stmt->bind_param('ss', $href, $id);
+            $stmt->bind_param('s', $href);
         }
         if ($stmt->errno == 0) {
             $b_state = $stmt->execute();
@@ -313,17 +313,10 @@ class HrefAccess {
         $list_href = implode('', $list_href);
         $list_href = sprintf($list_href, $db_name, $prefix);
 
-        $column_replace = $db_commands['list-href-selector']['column-replace'];
-       
-
         if ($narrow_down) {
             $narrow_downs = [];
             foreach ($narrow_down as $entry) {
                 $column = $entry['column'];
-                if (array_key_exists($column, $column_replace)) {
-                    $column = sprintf($column_replace[$column],
-                        $db_name, $prefix); 
-                }
                 $narrow_downs[] = sprintf("%s LIKE '%s'", 
                     $column, $entry['pattern']);
             }
@@ -379,11 +372,9 @@ class HrefAccess {
      */
     function handle_insert() {
         if (isset($_REQUEST['href'])
-            && isset($_REQUEST['id'])
             && isset($_REQUEST['selector'])) {
             $href_id = $this->insert_href(
                 $_REQUEST['href'], 
-                $_REQUEST['id'],
                 $_REQUEST['selector']);
             if ($href_id) {
                 $response = ['href-id' => $href_id];
@@ -400,11 +391,9 @@ class HrefAccess {
      * handle find href id
      */
     function handle_find_href_id() {
-        if (isset($_REQUEST['href'])
-            && isset($_REQUEST['id'])) {
+        if (isset($_REQUEST['href'])) {
             $href_id = $this->find_href_id(
-                $_REQUEST['href'], 
-                $_REQUEST['id']);
+                $_REQUEST['href']);
             if ($href_id) {
                 $response = ['href-id' => $href_id];
             } else {
@@ -420,11 +409,9 @@ class HrefAccess {
      * handle find selector
      */
     function handle_find_selector() {
-        if (isset($_REQUEST['href'])
-            && isset($_REQUEST['id'])) {
+        if (isset($_REQUEST['href'])) {
             $selector = $this->find_selector(
-                $_REQUEST['href'], 
-                $_REQUEST['id']);
+                $_REQUEST['href']);
             if ($href_id) {
                 $response = ['selector' => $selector];
             } else {

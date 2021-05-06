@@ -135,20 +135,6 @@ class Registration {
         }
 
     /**
-     * get id input user interface in record input modal
-     */
-    val recordInputIdUi: HTMLInputElement?
-        get() {
-            val modal = recordInputModalUi
-            var result: HTMLInputElement? = null
-            if (modal != null) {
-                result = modal.querySelector("input[name='id']")
-                    as HTMLInputElement?
-            }
-            return result
-        }
-
-    /**
      * get selector input user interface in record input modal
      */
     val recordInputSelectorUi: HTMLInputElement?
@@ -184,28 +170,6 @@ class Registration {
             }
         }
 
-    /**
-     * get id in record input modal
-     */
-    var recordInputId: String?
-        get() {
-            var result: String? = null
-            val ui = recordInputIdUi
-            if (ui != null) {
-                result = ui.value
-            }
-            return result 
-        }
-        set(value) {
-            val ui = recordInputIdUi
-            if (ui != null) {
-                ui.value = if (value != null) {
-                    value
-                } else {
-                    ""
-                }
-            }
-        }
     /**
      * selector in record input modal
      */
@@ -1175,7 +1139,6 @@ class Registration {
      */
     fun clearHrefRecordInput() {
         recordInputHref = null
-        recordInputId = null 
         recordInputSelector = null
     }
 
@@ -1199,15 +1162,13 @@ class Registration {
      */
     fun insertHrefRecordIntoSite(): Promise<Boolean> {
         val href = recordInputHref
-        val id = recordInputId
         val selector = recordInputSelector
-        return if (id != null 
-            && selector != null
+        return if (selector != null
             && href != null && href.isNotEmpty()) {
-            insertHrefRecordIntoSite(href, id, selector)
+            insertHrefRecordIntoSite(href, selector)
         } else {
             Promise<Boolean> {
-                resolve, reject ->
+                resolve, _ ->
                 resolve(false)
             }
         }
@@ -1219,14 +1180,12 @@ class Registration {
      */
     fun insertHrefRecordIntoSite(
         href: String,
-        id: String,
         selector: String): Promise<Boolean>  {
        
         val body = URLSearchParams()
         body.append("href-access", "")
         body.append("insert", "")
         body.append("href", href)
-        body.append("id", id)
         body.append("selector", selector)
         
         return window.fetch("/mgr-rest.php",

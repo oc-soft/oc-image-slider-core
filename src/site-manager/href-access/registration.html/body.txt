@@ -30,7 +30,6 @@
       <thead>
         <tr>
           <th>HREF</th>
-          <th>ID</th>
           <th>SELECTOR</th>
         </tr>
       </thead>
@@ -47,10 +46,6 @@
         <td data-name="HREF" contenteditable="true"></td>
       </tr>
       <tr data-order>
-        <td><?php echo _('ID'); ?></td>
-        <td data-name="ID" contenteditable="true"></td>
-      </tr>
-      <tr data-order>
         <td><?php echo _('SELECTOR'); ?></td>
         <td data-name="SELECTOR" contenteditable="true"></td>
       </tr>
@@ -63,10 +58,6 @@
       <tr data-order>
         <td><?php echo _('HREF'); ?></td>
         <td data-name="HREF"><span class="icon-no-sort"></span></td>
-      </tr>
-      <tr data-order>
-        <td><?php echo _('ID'); ?></td>
-        <td data-name="ID"><span class="icon-no-sort"></span></td>
       </tr>
       <tr data-order>
         <td><?php echo _('SELECTOR'); ?></td>
@@ -84,11 +75,6 @@
             <label for="href-input-21440"><?php echo _('HREF'); ?></label>
             <input class="form-control"
               name="href" type="text" id="href-input-21440" required>
-          </div>
-          <div class="form-group">
-            <label for="id-input-28060"><?php echo _('ID'); ?></label>
-            <input class="form-control"
-              name="id" type="text" id="id-input-28060">
           </div>
           <div class="form-group">
             <label for="id-input-31766"><?php echo _('SELECTOR'); ?></label>
