@@ -215,13 +215,12 @@ class HrefAccess {
             $b_state = $stmt->execute();
             if ($b_state) {
                 $b_state = $stmt->bind_result(
-                    $dest_href, $dest_id, $src_href, $src_id, $access);
+                    $src_href, $dest_href, $access);
             }
             $result = [];
             if ($b_state) {
                 while ($stmt->fetch()) {
-                    $result[] = [$dest_href, $dest_id,
-                        $src_href, $access];
+                    $result[] = [$src_href, $dest_href, $access];
                 }
             }
         } else {

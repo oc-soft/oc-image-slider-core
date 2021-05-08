@@ -18,20 +18,27 @@
     ?></button>
   </form>
 </nav>
-<main>
-  <div class="table-container">
+<main class="each-accesses">
+  <div class="table-container access-list-panel">
     <table class="table each-accesses-list">
       <thead>
         <tr>
-          <th><?php echo _('DST HREF'); ?></th>
-          <th><?php echo _('DST ID'); ?></th>
-          <th><?php echo _('SRC HREF'); ?></th>
-          <th><?php echo _('SRC ID'); ?></th>
+          <th><?php echo _('SRC'); ?></th>
+          <th><?php echo _('DST'); ?></th>
+          <th><?php echo _('TIME'); ?></th>
         </tr>
       </thead>
       <tbody>
       </tbody>
     </table>
+  </div>
+  <div class="access-panel source">
+    <iframe>
+    </iframe>
+  </div>
+  <div class="access-panel destination">
+    <iframe>
+    </iframe>
   </div>
 </main>
 <!-- vi: se ts=2 sw=2 et: -->

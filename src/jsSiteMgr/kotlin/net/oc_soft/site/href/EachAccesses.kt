@@ -10,15 +10,22 @@ import kotlin.collections.toList
 import kotlinx.browser.document
 import kotlinx.browser.window
 
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLTableElement
 import org.w3c.dom.HTMLTableSectionElement
 import org.w3c.dom.HTMLTableRowElement
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLIFrameElement
+import org.w3c.dom.Document
+import org.w3c.dom.Window
 import org.w3c.dom.events.Event
 import org.w3c.dom.get
 import org.w3c.dom.url.URLSearchParams
 import org.w3c.fetch.RequestInit
+import org.w3c.dom.url.URL
+import org.w3c.dom.DocumentReadyState
+import org.w3c.dom.COMPLETE
 
 
 /**
@@ -55,6 +62,116 @@ class EachAccesses {
                 "input[type='date'].each-accesses.access-end")
                 as HTMLInputElement?
         }
+
+
+    /**
+     * src href view ui 
+     */
+    val srcViewUi: HTMLIFrameElement?
+        get() {
+            return document.querySelector(".access-panel.source iframe")
+                as HTMLIFrameElement?
+        }
+
+    /**
+     * deteminated href view ui 
+     */
+    val destViewUi: HTMLIFrameElement?
+        get() {
+            return document.querySelector(".access-panel.destination iframe")
+                as HTMLIFrameElement?
+        }
+
+
+    /**
+     * src view document
+     */
+    val srcViewDocument: Document?
+        get() {
+            return srcViewUi?.contentDocument 
+        }
+
+    /**
+     * determinated view document
+     */
+    val destViewDocument: Document?
+        get() {
+            return destViewUi?.contentDocument 
+        }
+
+    /**
+     * source view' Window 
+     */
+    val srcViewWindow: Window?
+        get() {
+            return srcViewUi?.contentWindow 
+        }
+
+    /**
+     * determinated view's window 
+     */
+    val destViewWindow: Window?
+        get() {
+            return destViewUi?.contentWindow 
+        }
+
+
+    /**
+     * src view marker
+     */
+    var srcViewMarker: HTMLElement?
+        get() {
+            return srcViewDocument?.querySelector(
+                "div.marker").unsafeCast<HTMLElement?>()
+        }
+        set(value) {
+            val currentMarker = srcViewMarker
+            if (value == null) {
+                if (currentMarker != null) {
+                    currentMarker.remove()
+                }
+            } else {
+                if (value != currentMarker) {
+                    if (currentMarker != null) {
+                        currentMarker.remove()
+                    }
+                    val srcDoc = srcViewDocument
+                    if (srcDoc != null) {
+                        srcDoc.body!!.appendChild(value)
+                    } 
+                }
+            }
+
+        }
+    
+
+    /**
+     * determinated view marker
+     */
+    var destViewMarker: HTMLElement?
+        get() {
+            return destViewDocument?.querySelector(
+                "div.marker").unsafeCast<HTMLElement?>()
+        }
+        set(value) {
+            val currentMarker = destViewMarker
+            if (value == null) {
+                if (currentMarker != null) {
+                    currentMarker.remove()
+                }
+            } else {
+                if (value != currentMarker) {
+                    if (currentMarker != null) {
+                        currentMarker.remove()
+                    }
+                    val destDoc = destViewDocument
+                    if (destDoc != null) {
+                        destDoc.body!!.appendChild(value)
+                    } 
+                }
+            }
+        }
+ 
 
     /**
      * update command user interface
@@ -105,6 +222,10 @@ class EachAccesses {
      */
     var updateClickHdlr: ((Event)->Unit)? = null
 
+    /**
+     * event handler to  click event on table
+     */
+    var tableRowClickHdlr: ((Event)->Unit)? = null
 
     /**
      * bind this object into html elements
@@ -118,13 +239,27 @@ class EachAccesses {
             updateCommandUi.addEventListener("click", handler)
             this.updateClickHdlr = handler
         } 
+        val table = tableUi
+        if (table != null) {
+            val handler: (Event)->Unit = {
+                handleEventForSelectTableRow(it)
+            }
+            table.addEventListener("click", handler)
+            this.tableRowClickHdlr = handler
+        }
     }
 
     /**
      * detach this object from html elements
      */
     fun unbind() {
-        var handler = this.updateClickHdlr
+        var handler = this.tableRowClickHdlr
+        if (handler != null) {
+            tableUi!!.removeEventListener("click", handler)
+            this.tableRowClickHdlr = null
+        }
+        handler = this.updateClickHdlr
+        
         if (handler != null) {
             this.updateCommandUi!!.removeEventListener("click", handler)
             this.updateClickHdlr = null
@@ -140,6 +275,297 @@ class EachAccesses {
         evt.preventDefault()
     }
 
+    /**
+     * handle the event which is rised by click table row
+     */
+    fun handleEventForSelectTableRow(event: Event) {
+        markHref(event.target as HTMLElement)
+    }
+
+
+    /**
+     * mark href in view 
+     */
+    fun markHref(element: HTMLElement) {
+        val hrefs = getSrcAndDestHref(element)
+        if (hrefs != null) {
+            markHref(hrefs.first, hrefs.second)
+        }
+    }
+    /**
+     * mark herf in view
+     */
+    fun markHref(srcHref: String, destHref: String) {
+
+        markSrcViewDocument(srcHref)
+        markDestViewDocument(destHref)
+    }
+
+    /**
+     * mark on srcview
+     */
+    fun markSrcViewDocument(href: String) {
+        val doc = srcViewDocument 
+        if (doc != null) {
+            val url = URL("${document.location!!.origin}${href}")
+            val win = srcViewWindow!!
+            if (doc.location!!.href != url.href) {
+                val view = srcViewUi!!
+                waitForDocumentLoadedOnIFrame(
+                    view, url).then({
+                    val win = srcViewWindow!!
+                    var hdlr = Array<((Event)->Unit)?>(1) { null }
+                    hdlr[0] = {
+                        markSrcViewDocument(href)
+                        win.removeEventListener("load", hdlr[0]) 
+                    }
+                    win.addEventListener("load", hdlr[0])
+                })
+                
+            } else {
+                markSrcElement(href)
+            }
+        } else {
+            val view = srcViewUi
+            if (view != null) {
+                view.src = href
+                val window = srcViewWindow
+                if (window != null) {
+                    val hdlr = Array<((Event)->Unit)?>(1) { null }
+                    hdlr[0] = {
+                        markSrcViewDocument(href)
+                        window.removeEventListener("load", hdlr[0])
+                    }
+                    window.addEventListener("load", hdlr[0])
+                }
+            }
+        }
+    }
+
+
+
+    /**
+     * mark on destview
+     */
+    fun markDestViewDocument(href: String) {
+        val doc = destViewDocument 
+        if (doc != null) {
+            val url = URL("${document.location!!.origin}${href}")
+            if (doc.location!!.href!! != url.href) {
+                val view = destViewUi!!
+                waitForDocumentLoadedOnIFrame(
+                    view, url).then({
+                    val win = destViewWindow!!
+                    var hdlr = Array<((Event)->Unit)?>(1) { null }
+                    hdlr[0] = {
+                        markDestViewDocument(href)
+                        win.removeEventListener("load", hdlr[0]) 
+                    }
+                    win.addEventListener("load", hdlr[0])
+                })
+       
+            } else {
+                markDestElement(href)
+            }
+        } else {
+            val view = destViewUi
+            if (view != null) {
+                view.src = href
+                val window = destViewWindow
+                if (window != null) {
+                    val hdlr = Array<((Event)->Unit)?>(1) { null }
+                    hdlr[0] = {
+                        markDestViewDocument(href)
+                        window.removeEventListener("load", hdlr[0])
+                    }
+                    window.addEventListener("load", hdlr[0])
+                }
+            }
+        } 
+    }
+
+
+    /**
+     * waite document loaded on iframe
+     */
+    fun waitForDocumentLoadedOnIFrame(
+        element: HTMLIFrameElement,
+        url: URL): Promise<Unit> {
+        
+        element.contentWindow!!.location.assign(url.href) 
+        return Promise<Unit> {
+            resolve, reject ->
+            val intervalId = Array<Int>(0) { 0 }
+            var observingCount = 0
+            intervalId[0] = window.setInterval({ 
+                if (element.contentWindow!!.location.href == url.href) {
+                    window.clearInterval(intervalId[0])
+                    resolve(Unit) 
+                } else {
+                    observingCount++
+                    if (observingCount > 1000) {
+                        window.clearInterval(intervalId[0])
+                        reject(Throwable("time out"))
+                    }
+                }
+            }, 100) 
+        }
+    }
+
+
+    /**
+     * get src and dest href
+     */
+    fun getSrcAndDestHref(element: HTMLElement): Pair<String, String>? {
+        val tableRow = findTableRow(element)
+        return if (tableRow != null) {
+            val cells = tableRow.querySelectorAll("td")
+            if (cells.length > 1) {
+                Pair((cells[0] as HTMLElement).innerHTML, 
+                    (cells[1] as HTMLElement).innerHTML)
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * find table row
+     */
+    fun findTableRow(element: HTMLElement): HTMLTableRowElement? {
+        return if (element is HTMLTableRowElement) {
+            element
+        } else {
+            if (element.parentElement != null) {
+                findTableRow(element.parentElement as HTMLElement) 
+            } else { 
+                null
+            }
+        }
+    }
+
+    /**
+     * extract selector from url
+     */
+    fun extractSelector(url: URL): String {
+        val hash = url.hash   
+        return if (hash.isNotEmpty()) {
+            hash
+        } else {
+            "body" 
+        }
+    }
+
+    /**
+     * mark src element
+     */
+    fun markSrcElement(href: String) {
+        var marker = srcViewMarker
+        if (marker == null) {
+            marker = createSrcMarker()
+            srcViewMarker = marker
+        }
+        
+        val doc = srcViewDocument
+        
+        
+        val marked = if (doc != null) {
+            markElement(
+                doc, 
+                extractSelector(
+                    URL("${document.location!!.origin}${href}")), marker)
+        } else {
+            false
+        }
+        if (!marked) {
+            marker.style.display = "none"
+        } else {
+            marker.style.display = "block"
+        }
+    }
+
+    /**
+     * mark src element
+     */
+    fun markDestElement(href: String) {
+        var marker = destViewMarker
+        if (marker == null) {
+            marker = createDestMarker()
+            destViewMarker = marker
+        }
+        
+        val doc = destViewDocument
+        
+        val marked = if (doc != null) {
+            markElement(doc,
+                extractSelector(
+                    URL("${document.location!!.origin}${href}")), marker)
+        } else {
+            false
+        }
+        if (!marked) {
+            marker.style.display = "none"
+        } else {
+            marker.style.display = "block"
+        }
+    }
+
+
+    /**
+     * mark an element on document
+     */
+    fun markElement(document: Document,
+        selector: String,
+        marker: HTMLElement): Boolean {
+        
+        val element = document.querySelector(
+            selector).unsafeCast<Element?>()
+        return if (element != null) {
+            val bounds = element.getBoundingClientRect()
+
+            val left = document.defaultView!!.pageXOffset + bounds.left
+            val top = document.defaultView!!.pageYOffset + bounds.top
+            marker.style.left = "${left}px"
+            marker.style.top = "${top}px"
+            marker.style.width = "${bounds.width}px"
+            marker.style.height = "${bounds.height}px"
+            true
+        } else {
+            false
+        }
+    }
+
+    /**
+     * create src marker
+     */
+    fun createSrcMarker() : HTMLElement {
+        val result = createMarker(srcViewDocument!!)
+        result.classList.add("src")
+        return result
+    }
+
+    /**
+     * create determinated marker
+     */
+    fun createDestMarker() : HTMLElement {
+        val result = createMarker(destViewDocument!!)
+        result.classList.add("dest")
+        return result
+    }
+
+
+    /**
+     * create marker
+     */
+    fun createMarker(document: Document): HTMLElement {
+        val result = document.createElement("div").unsafeCast<HTMLElement>()
+
+        result.classList.add("marker")
+        
+        return result
+    }
 
     /**
      * synchronize access list with site
@@ -186,6 +612,11 @@ class EachAccesses {
             anObj["access-list"] as Array<Array<String>>
         })
     }
+
+
+
+
+
 
     /**
      * update access list user interface
