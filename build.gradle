@@ -44,6 +44,7 @@ ext.karmaWebpackSetting = [
 ext.buildSiteDependsMode = 'Development'
 
 
+
 kotlin {
     jvm()
 
@@ -73,6 +74,7 @@ kotlin {
                     'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3')
                 compileOnly npm('html-webpack-plugin', '^4.0.2')
                 compileOnly npm('webpack-cdn-plugin', '>=3.3.1')
+                compileOnly npm('clean-webpack-plugin', '>=4.0.0-alpha.0')
                 compileOnly npm('html-webpack-skip-assets-plugin', '>=1.0.1')
                 compileOnly npm('mini-css-extract-plugin', '>=1.4.0')
                 compileOnly npm('@fortawesome/fontawesome-free', '>=5.15.1')
@@ -277,6 +279,10 @@ task jsResourcesForSite {
             from getWebpackHtmlOutput()
             into "${outputRoot}/lib"
         }
+
+        delete "${outputRoot}/${webpackSetting.jsProgramDir}",
+            "${outputRoot}/${webpackSetting.cssDir}"
+        
         copy {
             from "${distDir}/${webpackSetting.jsProgramDir}"
             include '*.js'
@@ -405,5 +411,26 @@ task siteMgrMsgFmt(type: net.oc_soft.MsgFmtTask) {
 
 
 buildSite.dependsOn siteMgrMsgFmt
+
+def getRsyncSiteSetting() {
+    def settingPath = new File(projectDir, 'rsync-site.json')
+    return new groovy.json.JsonSlurper().parseText(settingPath.text)
+}
+
+
+task rsyncWebSite {
+
+    exec {
+        def setting = getRsyncSiteSetting() 
+        def sgenSetting = readSgenSetting()
+        def outputRoot = sgenSetting['output-root']
+ 
+        args '-r', '--exclude-from=rsync-ignore.txt', 
+            "${outputRoot}/", setting['remote']
+        executable = 'rsync'
+    }
+}
+rsyncWebSite.dependsOn buildSite
+
 
 // vi: se ts=4 sw=4 et:
