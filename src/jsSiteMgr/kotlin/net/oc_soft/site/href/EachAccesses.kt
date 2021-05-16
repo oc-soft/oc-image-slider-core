@@ -601,7 +601,7 @@ class EachAccesses {
         body.append("list-access", "")
         body.append("begin", accessBegin)
         body.append("end", accessEnd)
-        return window.fetch("/mgr-rest.php",
+        return window.fetch("mgr-rest.php",
             RequestInit(
                 method = "POST",
                 body = body,

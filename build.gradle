@@ -41,7 +41,9 @@ ext.karmaWebpackSetting = [
         "_${webpackSetting.gradleBuildJs}")
 ]
 
-ext.buildSiteDependsMode = 'Development'
+// ext.buildSiteDependsMode = 'Development'
+ext.buildSiteDependsMode = 'Production'
+
 
 
 
@@ -420,14 +422,25 @@ def getRsyncSiteSetting() {
 
 task rsyncWebSite {
 
-    exec {
-        def setting = getRsyncSiteSetting() 
-        def sgenSetting = readSgenSetting()
-        def outputRoot = sgenSetting['output-root']
- 
-        args '-r', '--exclude-from=rsync-ignore.txt', 
-            "${outputRoot}/", setting['remote']
-        executable = 'rsync'
+    def timeStamp = new File(buildDir, 'rsync-time-stamp.txt')
+    def sgenSetting = readSgenSetting()
+    def outputRoot = sgenSetting['output-root']
+
+    doLast {
+        exec {
+            def setting = getRsyncSiteSetting() 
+     
+            if (setting['port']) {
+                args "--port=${setting['port']}"
+            }
+            args '-r', '--exclude-from=rsync-ignore.txt', 
+                "${outputRoot}/", setting['remote']
+            executable = 'rsync'
+
+            println commandLine
+            
+            timeStamp.text = new Date().format('yyyyMMddHHmmss') 
+        }
     }
 }
 rsyncWebSite.dependsOn buildSite

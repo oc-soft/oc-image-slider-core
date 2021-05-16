@@ -105,7 +105,7 @@ class Db {
         params.append("db", "")
         params.append("create", "")
 
-        return window.fetch("/mgr-rest.php", 
+        return window.fetch("mgr-rest.php", 
            RequestInit(
                 method = "POST",
                 body = params)).then({
@@ -124,7 +124,7 @@ class Db {
         params.append("db", "")
         params.append("list-tables", "")
 
-        return window.fetch("/mgr-rest.php", 
+        return window.fetch("mgr-rest.php", 
            RequestInit(
                 method = "POST",
                 body = params)).then({

@@ -17,6 +17,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+domain "db-status"
+
 #: src/site-manager/db-status.html/body.txt:4
 msgid "Create"
 msgstr "生成"
@@ -24,3 +26,4 @@ msgstr "生成"
 #: src/site-manager/db-status.html/body.txt:10
 msgid "NAME"
 msgstr "テーブル名"
+

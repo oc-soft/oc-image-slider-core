@@ -130,7 +130,7 @@ class Tracker {
         body.append("insert", "")
         body.append("href-src", srcHref)
         body.append("href-dst", destHref)
-        window.fetch("/mgr-rest.php",
+        window.fetch("mgr-rest.php",
             RequestInit(
                 method = "POST",
                 body = body))

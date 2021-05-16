@@ -1,5 +1,5 @@
 <?php
-require_once './mgr-functions.php';
+require_once implode('/', [__DIR__, 'mgr-functions.php']);
 
 (function () {
     global $lib_dir;

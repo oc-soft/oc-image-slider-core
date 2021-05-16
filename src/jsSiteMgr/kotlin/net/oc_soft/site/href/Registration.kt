@@ -6,6 +6,7 @@ import kotlin.collections.Iterable
 import kotlin.collections.List
 import kotlin.collections.toList
 import kotlin.collections.Map
+import kotlin.collections.HashMap
 import kotlin.collections.ArrayList
 import kotlin.collections.mapOf
 
@@ -203,25 +204,56 @@ class Registration {
             return document.querySelector(
                 ".add-record") as HTMLElement?
         }
+
     /**
      * sort icon map
      */
-    val sortIconMap: Map<String, String> by lazy {
-        mapOf(
-            "icon-no-sort" to "icon-sort-asc",
-            "icon-sort-asc" to "icon-sort-desc",
-            "icon-sort-desc" to "icon-no-sort") 
-    }
+    private var sortIconMapValue: Map<String, String>? = null
+
+    /**
+     * sort icon map
+     */
+    val sortIconMap: Map<String, String> 
+        get() {
+            if (sortIconMapValue == null) {
+                val map = HashMap<String, String>()
+                map["icon-no-sort"] = "icon-sort-asc"
+                map["icon-sort-asc"] = "icon-sort-desc"
+                map["icon-sort-desc"] = "icon-no-sort" 
+                sortIconMapValue = map
+            }
+            return sortIconMapValue!!
+        }
+        // following lines cause to raise TypeError on runtime.
+        // by lazy {
+        //    mapOf(
+        //      "icon-no-sort" to "icon-sort-asc",
+        //      "icon-sort-asc" to "icon-sort-desc",
+        //      "icon-sort-desc" to "icon-no-sort") 
+        //}
+
+
+
+    /**
+     * sort icon map
+     */
+    private var sortIconOrderMapValue: Map<String, String?>? = null
+
 
     /**
      * sort icon to order map
      */
-    val sortIconOrderMap: Map<String, String?> by lazy {
-        mapOf(
-            "icon-no-sort" to null,
-            "icon-sort-asc" to "ASC",
-            "icon-sort-desc" to "DESC")
-    }
+    val sortIconOrderMap: Map<String, String?>
+        get() {
+            if (sortIconOrderMapValue == null) {
+                val map = HashMap<String, String?>()
+                map["icon-no-sort"] = null
+                map["icon-sort-asc"] = "ASC"
+                map["icon-sort-desc"] = "DESC"
+                sortIconOrderMapValue = map
+            }
+            return sortIconOrderMapValue!!
+        }
 
     /**
      * narrow down user iterface items
@@ -267,9 +299,10 @@ class Registration {
                 uiItems.forEach {
                     val strItem = it.innerHTML
                     if (strItem.isNotEmpty()) {
-                        itemList.add(
-                            mapOf("column" to it.dataset["name"]!!,
-                                "pattern" to strItem))  
+                        val map = HashMap<String, String>()
+                        map["column"] = it.dataset["name"]!!
+                        map["pattern"] = strItem
+                        itemList.add(map)
                     }
                 }
             }
@@ -607,8 +640,34 @@ class Registration {
     fun updateTableIfQueryOptionIsNotEquals(
         queryA: Array<Map<String, String>>?,
         queryB: Array<Map<String, String>>?) {
-        if (!(queryA contentEquals queryB)) {
-           syncTableWithSite() 
+        var doUpdate = false
+        if (queryA != null && queryB != null) {
+            doUpdate = queryA.size != queryB.size
+            if (!doUpdate) {
+                queryA.forEachIndexed {
+                    idx, mapA ->
+                    val mapB = queryB[idx] 
+                    mapA.forEach {
+                        doUpdate = it.value != mapB[it.key]
+                        if (doUpdate) {
+                            return@forEach
+                        }
+                    }
+                    if (doUpdate) {
+                        return@forEachIndexed
+                    }
+                }
+            }
+        } else if (queryA != null && queryB == null) {
+            doUpdate = queryA.size > 0
+        } else if (queryA == null && queryB != null) {
+            doUpdate = queryB.size > 0
+        }
+
+        if (doUpdate) {
+            // !(queryA contentEquals queryB)
+            // condition raise exception
+            syncTableWithSite() 
         }
     }
 
@@ -1016,10 +1075,7 @@ class Registration {
         if (locStr != null) {
             val items: Array<Any> = JSON.parse (locStr)  
             result = DoubleArray(2) {
-                when (items[it]) {
-                    is Number -> (items[it] as Number).toDouble()
-                    else -> items[it].toString().toDouble()
-                }
+                items[it].unsafeCast<Double>()
             }
         } 
         return result
@@ -1044,7 +1100,7 @@ class Registration {
         element: HTMLElement): Int {
         val strData = element.dataset["insertionIndex"]!!
 
-        val result = strData.toInt()
+        val result = strData.unsafeCast<Int>()
 
         return result 
     }
@@ -1075,7 +1131,7 @@ class Registration {
     fun getInitialOrderIndexFromData(
         element: HTMLElement): Int {
         val strIdx = element.dataset["initialOrderIndex"]!!
-        val result = strIdx.toInt()
+        val result = strIdx.unsafeCast<Int>()
         return result
     }
 
@@ -1188,7 +1244,7 @@ class Registration {
         body.append("href", href)
         body.append("selector", selector)
         
-        return window.fetch("/mgr-rest.php",
+        return window.fetch("mgr-rest.php",
            RequestInit(
                 method = "POST",
                 body = body)).then({
@@ -1228,7 +1284,7 @@ class Registration {
                 toJsonObject(orderItems)))
         }
  
-        return window.fetch("/mgr-rest.php",
+        return window.fetch("mgr-rest.php",
            RequestInit(
                 method = "POST",
                 body = body)).then({

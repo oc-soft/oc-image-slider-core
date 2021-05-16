@@ -24,3 +24,4 @@ msgstr "生成"
 #: src/site-manager/db-status.html/body.txt:10
 msgid "NAME"
 msgstr "テーブル名"
+

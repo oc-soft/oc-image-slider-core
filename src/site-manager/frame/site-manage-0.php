@@ -16,11 +16,11 @@ require_once resolve_functions(__FILE__);
 
 global $lib_dir;
 global $root_dir;
+
 require_once implode('/', [$lib_dir, 'I18n.php']);
-
-
 I18n::$instance->init_locale_for_message(
   implode('/', [$root_dir, 'locale']));
+
 
 ?><!DOCTYPE HTML>
 <html>

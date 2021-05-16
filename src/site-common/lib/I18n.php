@@ -41,57 +41,35 @@ class I18n {
         return $result;
     }
 
-    /**
-     * set locale message with preferred language.
-     */
-    function init_locale_for_message_1() {
-        setlocale(LC_MESSAGES, "");
-        putenv(sprintf("LC_MESSSAGES=%s", $this->get_preferred_language()));
-    }
-
 
     /**
      * set locale for message
      */
     function init_locale_for_message(
-        $locale_dir,
-        $lc_type = 'UTF-8') {
-        putenv(sprintf('LC_TYPE=%s', $lc_type));
-
+        $locale_dir) {
         $lang = $this->get_preferred_language();
 
         $locales = $this->locale_to_locales($lang);
-        putenv(sprintf('LOCPATH=%s', $locale_dir));
-        
-        foreach ($locales as $locale) {
-            putenv(sprintf('LC_MESSAGES=%s', $locale));
 
-            $res = setlocale(LC_MESSAGES, "");
-            if ($res) {
-                break;
+        $result = setlocale(LC_MESSAGES, $locales);
+        if ($result) {
+            putenv(sprintf('LC_MESSAGES=%s', $result));
+        } else {
+            $saved_locale = getenv('LOCPATH');
+            putenv(sprintf('LOCPATH=%s', $locale_dir));
+
+            $result = setlocale(LC_MESSAGES, $locales);
+            if ($result) {
+                putenv(sprintf('LC_MESSAGES=%s', $result));
+            }
+            if ($saved_locale) {
+                putenv(sprintf('LOCPATH=%s', $saved_locale));
+            } else {
+                putenv('LOCPATH');
             }
         }
+        return $result;
     }
-
-
-
-    /**
-     * set locale for message
-     */
-    function init_locale_for_message_i(
-        $fallback_locale_dir,
-        $lang) {
-        putenv(sprintf('LC_MESSAGES=%s', $lang));
-        $locale = $this->set_locale(
-            LC_MESSAGES, $lang, $fallback_locale_dir); 
-        if ($locale) {
-            if ($locale != $lang) {
-                $this->init_locale_for_message_i(
-                    $fallback_locale_dir, $locale);
-            }
-        }
-    }
-
 
 
     /**
