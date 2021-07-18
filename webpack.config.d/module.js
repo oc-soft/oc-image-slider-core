@@ -38,7 +38,14 @@ class Module {
             url: false
           }
         },
-        'sass-loader'
+        {
+          loader: 'sass-loader',
+          options: {
+            sassOptions: {
+              outputStyle: 'expanded'
+            }
+          }
+        }
       ]
     })
   }

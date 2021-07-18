@@ -12,12 +12,18 @@ class Entries {
 
     if (config.mode == 'development') {
       config.entry.siteMgr = GradleBuild.config.siteMgrDevEntry
+      config.entry.postsMgr = GradleBuild.config.postsMgrDevEntry
+      config.entry.post = GradleBuild.config.postDevEntry
     } else {
       config.entry.siteMgr = GradleBuild.config.siteMgrEntry
+      config.entry.postsMgr = GradleBuild.config.postsMgrEntry
+      config.entry.post = GradleBuild.config.postEntry
     }
  
     config.entry.mainCss = GradleBuild.config.mainSrcCss
     config.entry.siteMgrCss = GradleBuild.config.siteMgrSrcCss
+    config.entry.postsMgrCss = GradleBuild.config.postsMgrSrcCss
+    config.entry.postCss = GradleBuild.config.postSrcCss
   }
 }
 

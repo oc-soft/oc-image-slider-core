@@ -26,6 +26,8 @@ class HtmlWebpack {
   setupHtmlPlugin(config) {
     this.setupHtmlPluginMain(config)
     this.setupHtmlPluginSiteMgr(config)
+    this.setupHtmlPluginPostsMgr(config)
+    this.setupHtmlPluginPost(config)
   }
 
   /**
@@ -41,10 +43,13 @@ class HtmlWebpack {
     htmlPluginConfig.filename = GradleBuild.config.mainHtmlOutput
     htmlPluginConfig.template = GradleBuild.config.mainSrcTemplate
     htmlPluginConfig.excludeAssets = [
-      /siteMgrCss.*\.css/,
       /mainCss.*\.js/,
       /siteMgr.*\.js/,
-      /siteMgrCss.*\.js/
+      /siteMgrCss.*\.(js|css)/,
+      /postsMgr.*\.js/,
+      /postsMgrCss.*\.(js|css)/,
+      /post.*\.js/,
+      /postCss.*\.(js|css)/
     ]
     config.plugins = config.plugins || []
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
@@ -66,10 +71,13 @@ class HtmlWebpack {
     htmlPluginConfig.template = GradleBuild.config.siteMgrSrcTemplate
 
     htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.css/,
-      /mainCss.*\.js/,
+      /mainCss.*\.(js|css)/,
       /main.*\.js/,
-      /siteMgrCss.*\.js/
+      /siteMgrCss.*\.js/,
+      /postsMgr.*\.js/,
+      /postsMgrCss.*\.(js|css)/,
+      /post.*\.js/,
+      /postCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -77,6 +85,65 @@ class HtmlWebpack {
     this.setupHtmlExcludeAssets(config)
 
   }
+
+  /**
+   * set html-webpack-plugin up
+   */
+  setupHtmlPluginPostsMgr(config) {
+    const HtmlWebpackPlugin = require('html-webpack-plugin');
+   
+    const htmlPluginConfig = {
+      inject: false,
+      cdnModule: 'postsMgr',
+      minify: false
+    }
+    htmlPluginConfig.filename = GradleBuild.config.postsMgrHtmlOutput
+    htmlPluginConfig.template = GradleBuild.config.postsMgrSrcTemplate
+
+    htmlPluginConfig.excludeAssets = [
+      /mainCss.*\.(js|css)/,
+      /main.*\.js/,
+      /siteMgr.*\.js/,
+      /siteMgrCss.*\.(js|css)/,
+      /postsMgrCss.*\.js/,
+      /post-.*\.js/,
+      /postCss.*\.(js|css)/
+    ]
+
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+  }
+
+  /**
+   * set html-webpack-plugin up
+   */
+  setupHtmlPluginPost(config) {
+    const HtmlWebpackPlugin = require('html-webpack-plugin');
+   
+    const htmlPluginConfig = {
+      inject: false,
+      cdnModule: 'post',
+      minify: false
+    }
+    htmlPluginConfig.filename = GradleBuild.config.postHtmlOutput
+    htmlPluginConfig.template = GradleBuild.config.postSrcTemplate
+
+    htmlPluginConfig.excludeAssets = [
+      /mainCss.*\.(js|css)/,
+      /main.*\.js/,
+      /siteMgr.*\.js/,
+      /siteMgrCss.*\.(js|css)/,
+      /postsMgr.*\.js/,
+      /postsMgrCss.*\.(js|css)/,
+      /postCss.*\.js/
+    ]
+
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+  }
+
 
   setupHtmlExcludeAssets(config) {
     const HtmlWebpackSkipAssetsPlugin = require(
@@ -94,10 +161,8 @@ class HtmlWebpack {
     const fontawesomeFree = {
       name: '@fortawesome/fontawesome-free',
       cdn: 'font-awesome',
+      cssOnly: true,
       paths: [
-        'js/fontawesome.min.js',
-        'js/solid.js',
-        'js/brands.js'
       ],
       prodUrl: '//cdnjs.cloudflare.com/ajax/libs/:name/:version/:path',
       styles: [
@@ -132,7 +197,9 @@ class HtmlWebpack {
     const cdnPluginConfig = {
       modules: {
         main: basicModuleSetting,
-        siteMgr: basicModuleSetting
+        siteMgr: basicModuleSetting,
+        postsMgr: basicModuleSetting,
+        post: basicModuleSetting
       }
     }
     cdnPluginConfig.pathToNodeModules = GradleBuild.config.jsRootDir

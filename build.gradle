@@ -11,7 +11,9 @@ repositories {
 
 ext.appNames = [
     [ 'main', 'main' ],
-    [ 'site-mgr', 'SiteManager']
+    [ 'site-mgr', 'SiteManager' ],
+    [ 'post-mgr', 'PostsManager' ],
+    [ 'post', 'Post' ]
 ]
 
 ext.jarApp = [
@@ -19,15 +21,37 @@ ext.jarApp = [
     exeSh: "gen.sh"
 ]
 
+ext.jarWpFetchApp = [
+    output: "${buildDir}/jar/${rootProject.name}-wpFetch",
+    exeSh: "wpfetch.sh"
+]
+
 ext.webpackSetting = [
     gradleBuildJs: 'gradle-build.js',
     libraryTarget: 'umd',
     mainSrcTemplate: 'src/php/client-resources.php',
     mainStyleSrc: 'src/site/style/main.scss',
+    mainSubStyleSrc: ['src/site/style/services.scss'], 
     mainHtmlOutput: 'client-resources.php',
+    mainCssOutput: 'mainCss.css',
+
     siteMgrSrcTemplate: 'src/php/site-mgr-client-resources.php',
     siteMgrStyleSrc: 'src/site-manager/style/site-mgr-main.scss',
     siteMgrHtmlOutput: 'site-mgr-client-resources.php',
+    siteMgrCssOutput: 'siteMgrCss.css',
+
+    postsMgrSrcTemplate: 'src/php/posts-mgr-client-resources.php',
+    postsMgrStyleSrc: 'src/site/style/posts-mgr-main.scss',
+    postsMgrHtmlOutput: 'posts-mgr-client-resources.php',
+    postsMgrCssOutput: 'postsMgrCss.css',
+
+    postSrcTemplate: 'src/php/post-client-resources.php',
+    postStyleSrc: 'src/site/style/post-main.scss',
+    postHtmlOutput: 'post-client-resources.php',
+    postCssOutput: 'postCss.css',
+
+
+
     jsProgramDir: 'js',
     cssDir: 'css'
 ]
@@ -41,17 +65,21 @@ ext.karmaWebpackSetting = [
         "_${webpackSetting.gradleBuildJs}")
 ]
 
-// ext.buildSiteDependsMode = 'Development'
-ext.buildSiteDependsMode = 'Production'
+ext.buildSiteDependsMode = 'Development'
+// ext.buildSiteDependsMode = 'Production'
 
 
 
 
 kotlin {
-    jvm()
+    jvm {
+        compilations.create('wpFetch')
+    }
 
     js {
         compilations.create('siteMgr')
+        compilations.create('postsMgr')
+        compilations.create('post')
 
         browser {
             webpackTask {
@@ -61,13 +89,25 @@ kotlin {
     }
 
     sourceSets {
+
+        jvmCommon {
+            dependencies {
+                implementation 'com.google.code.gson:gson:2.8.7'
+            }
+        }
+        
         jvmMain {
+            dependsOn jvmCommon
             dependencies {
                 implementation 'gnu.getopt:java-getopt:1.0.13'
-                implementation 'com.google.code.gson:gson:2.8.6'
                 implementation 'com.google.guava:guava:23.0'
             }
         }
+        jvmWpFetch {
+            dependsOn jvmCommon
+
+        }
+ 
         jsCommon {
             dependsOn commonMain
             dependencies {
@@ -94,6 +134,12 @@ kotlin {
         jsSiteMgr {
             dependsOn jsCommon
         }
+        jsPostsMgr {
+            dependsOn jsCommon
+        }
+        jsPost {
+            dependsOn jsCommon
+        }
     }
 }
 
@@ -101,7 +147,6 @@ def getRuntimeDependencyFiles(def compilationName) {
     return kotlin.targets.jvm.compilations[
         compilationName].runtimeDependencyFiles
 }
-
 
 
 task copyDependsJar {
@@ -182,6 +227,18 @@ task webpackGradleBuild {
             webpackSetting.siteMgrStyleSrc)
 
 
+        def postsMgrSrcTemplate = new File(projectDir,
+            webpackSetting.postsMgrSrcTemplate) 
+        def postsMgrStyleTemplate = new File(projectDir,
+            webpackSetting.postsMgrStyleSrc)
+
+        def postSrcTemplate = new File(projectDir,
+            webpackSetting.postSrcTemplate) 
+        def postStyleTemplate = new File(projectDir,
+            webpackSetting.postStyleSrc)
+
+
+
         def binding = [
             config: """{
                 |  projectDir: '${projectDir}',
@@ -189,6 +246,8 @@ task webpackGradleBuild {
                 |  jsRootDir: '${jsRoot}',
                 |  mainHtmlOutput: '${webpackSetting.mainHtmlOutput}',
                 |  siteMgrHtmlOutput: '${webpackSetting.siteMgrHtmlOutput}',
+                |  postsMgrHtmlOutput: '${webpackSetting.postsMgrHtmlOutput}',
+                |  postHtmlOutput: '${webpackSetting.postHtmlOutput}',
                 |  programDir: '${webpackSetting.jsProgramDir}',
                 |  cssDir: '${webpackSetting.cssDir}',
                 |  mainProgramName: '${appNames[0][0]}',
@@ -198,8 +257,18 @@ task webpackGradleBuild {
                 |  siteMgrSrcTemplate: '${siteMgrSrcTemplate}',
                 |  siteMgrSrcCss: '${siteMgrStyleTemplate}',
                 |  siteMgrDevEntry: '${siteMgrDceDevOutput}',
-                |  siteMgrEntry: '${siteMgrDceOutput}'
-                |}""".stripMargin()
+                |  siteMgrEntry: '${siteMgrDceOutput}',
+                |  postsMgrProgramName: '${appNames[2][0]}',
+                |  postsMgrSrcTemplate: '${postsMgrSrcTemplate}',
+                |  postsMgrSrcCss: '${postsMgrStyleTemplate}',
+                |  postsMgrDevEntry: '${postsMgrDceDevOutput}',
+                |  postsMgrEntry: '${postsMgrDceOutput}',
+                |  postProgramName: '${appNames[3][0]}',
+                |  postSrcTemplate: '${postSrcTemplate}',
+                |  postSrcCss: '${postStyleTemplate}',
+                |  postDevEntry: '${postDceDevOutput}',
+                |  postEntry: '${postDceOutput}'
+                 |}""".stripMargin()
         ]
         def tmp = new groovy.text.StreamingTemplateEngine()
         tmp = tmp.createTemplate(gradleBuildSrc) 
@@ -215,20 +284,60 @@ def setupWebpack(def webpackTask) {
         webpackSetting.mainSrcTemplate) 
     def mainStyleTemplate = new File(projectDir,
         webpackSetting.mainStyleSrc)
+
     def siteMgrSrcTemplate = new File(projectDir,
         webpackSetting.siteMgrSrcTemplate) 
     def siteMgrStyleTemplate = new File(projectDir,
         webpackSetting.siteMgrStyleSrc)
 
+    def postsMgrSrcTemplate = new File(projectDir,
+        webpackSetting.postsMgrSrcTemplate) 
+    def postsMgrStyleTemplate = new File(projectDir,
+        webpackSetting.postsMgrStyleSrc)
+
+
+    def postSrcTemplate = new File(projectDir,
+        webpackSetting.postSrcTemplate) 
+    def postStyleTemplate = new File(projectDir,
+        webpackSetting.postStyleSrc)
+
+
     webpackTask.inputs.files mainSrcTemplate,
         mainStyleTemplate,
         siteMgrSrcTemplate,
-        siteMgrStyleTemplate
+        siteMgrStyleTemplate,
+        postsMgrSrcTemplate,
+        postsMgrStyleTemplate,
+        postSrcTemplate,
+        postStyleTemplate
+
+
+
+    webpackSetting.mainSubStyleSrc.each {
+        webpackTask.inputs.files new File(projectDir, it)
+    }
+
 
     webpackTask.inputs.files files("${projectDir}/webpack.config.d/*.js")
+
+
     def distDir = getDistributionDir()
+    def cssOutDir = new File(distDir, webpackSetting.cssDir)
+
     webpackTask.outputs.files new File(distDir, webpackSetting.mainHtmlOutput),
-        new File(distDir, webpackSetting.siteMgrHtmlOutput)
+        new File(cssOutDir, webpackSetting.mainCssOutput)
+
+    webpackTask.outputs.files new File(
+            distDir, webpackSetting.siteMgrHtmlOutput),
+        new File(cssOutDir, webpackSetting.siteMgrCssOutput)
+
+    webpackTask.outputs.files new File(
+        distDir, webpackSetting.postsMgrHtmlOutput),
+        new File(cssOutDir, webpackSetting.postsMgrCssOutput)
+
+    webpackTask.outputs.files new File(
+        distDir, webpackSetting.postHtmlOutput),
+        new File(cssOutDir, webpackSetting.postCssOutput)
 
 
     webpackTask.dependsOn webpackGradleBuild
@@ -260,7 +369,9 @@ def getDistributionDir() {
 def getWebpackHtmlOutput() {
     return [
         new File(getDistributionDir(), webpackSetting.mainHtmlOutput),
-        new File(getDistributionDir(), webpackSetting.siteMgrHtmlOutput)
+        new File(getDistributionDir(), webpackSetting.siteMgrHtmlOutput),
+        new File(getDistributionDir(), webpackSetting.postsMgrHtmlOutput),
+        new File(getDistributionDir(), webpackSetting.postHtmlOutput)
     ]
 }
 
@@ -412,6 +523,117 @@ task siteMgrMsgFmt(type: net.oc_soft.MsgFmtTask) {
 }
 
 
+
+task postsMgrDce(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to posts manager js file'
+    def dceDir = getDceDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.postsMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+task postsMgrDceDev(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to posts manager js file'
+    def dceDir = getDceDevDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.postsMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+/**
+ * get posts manager dce output directory
+ */
+def getPostsMgrDceOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.postsMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(postsMgrDce.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+/**
+ * get posts manager output directory
+ */
+def getPostsMgrDceDevOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.postsMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(postsMgrDceDev.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+jsBrowserProductionWebpack.inputs.files getPostsMgrDceOutput()
+jsBrowserDevelopmentWebpack.inputs.files getPostsMgrDceDevOutput()
+
+jsBrowserProductionWebpack.dependsOn postsMgrDce
+jsBrowserDevelopmentWebpack.dependsOn postsMgrDceDev
+
+
+task postDce(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to post js file'
+    def dceDir = getDceDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.post
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+task postDceDev(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to post js file'
+    def dceDir = getDceDevDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.post
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+/**
+ * get post dce output directory
+ */
+def getPostDceOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.post
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(postDce.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+/**
+ * get post output directory
+ */
+def getPostDceDevOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.post
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(postDceDev.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+jsBrowserProductionWebpack.inputs.files getPostDceOutput()
+jsBrowserDevelopmentWebpack.inputs.files getPostDceDevOutput()
+
+jsBrowserProductionWebpack.dependsOn postDce
+jsBrowserDevelopmentWebpack.dependsOn postDceDev
+
+
 buildSite.dependsOn siteMgrMsgFmt
 
 def getRsyncSiteSetting() {
@@ -443,7 +665,81 @@ task rsyncWebSite {
         }
     }
 }
+
 rsyncWebSite.dependsOn buildSite
 
+
+task jvmWpFetchJar(type: Jar) {
+    def comp = kotlin.targets.jvm.compilations['wpFetch']
+    from comp.output.allOutputs
+    archiveFileName = "${project.name}-${comp.compilationName}.jar"
+}
+
+jvmWpFetchJar.dependsOn jvmWpFetchClasses
+
+task copyDependsWpFetchJar {
+    doLast {
+        def classes = getRuntimeDependencyFiles('wpFetch')
+        classes += jvmWpFetchJar.archivePath
+
+        copy {
+            from classes
+            into jarWpFetchApp.output
+        }
+    }
+}
+
+copyDependsWpFetchJar.dependsOn jvmWpFetchJar
+
+task createWpFetchAppScript {
+
+    doLast {
+        def classes = getRuntimeDependencyFiles('wpFetch')
+        classes += jvmWpFetchJar.archivePath
+
+         
+        def classPathArray = []
+        classes.each {
+            classPathArray.add("\${JAR_ROOT_DIR}/${it.name}")
+        }
+    
+        def classPaths = classPathArray.join(':') 
+        def binding = [
+            classpaths: "-cp \"${classPaths}\"",
+            mainclass: 'net.oc_soft.wp_fetch.App'
+        ]
+        def runJarSrc0 = new File("${projectDir}/tools/run-jar-0.sh")
+        def runJarSrc1 = new File("${projectDir}/tools/run-jar-1.sh")
+        def tmp = new groovy.text.StreamingTemplateEngine()
+        tmp = tmp.createTemplate(runJarSrc1)
+        def jarSh = runJarSrc0.text + tmp.make(binding)
+
+
+        def shPath = new File("${jarWpFetchApp.output}/${jarWpFetchApp.exeSh}")
+        shPath.text = jarSh
+        shPath.executable = true
+
+    }
+}
+
+
+createWpFetchAppScript.dependsOn copyDependsWpFetchJar
+
+
+task copyWpToWebSite {
+
+    doLast {
+        def sgenSetting = readSgenSetting()
+        def outputRoot = sgenSetting['output-root']
+
+        copy {
+            from "wordpress"
+            into "${outputRoot}/wordpress"    
+            include "**"
+        }
+    }
+}
+
+buildSite.dependsOn copyWpToWebSite
 
 // vi: se ts=4 sw=4 et:

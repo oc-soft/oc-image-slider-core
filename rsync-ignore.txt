@@ -1,1 +1,2 @@
 config/db.json
+wordpress/wp-config.php
