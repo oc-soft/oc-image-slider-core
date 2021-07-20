@@ -3,6 +3,7 @@ package net.oc_soft
 
 import kotlin.text.Regex
 import kotlin.text.MatchResult
+import kotlin.collections.Map
 
 import kotlin.js.Promise
 import kotlin.js.Json
@@ -17,10 +18,12 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.events.KeyboardEvent
 
 import org.w3c.dom.DocumentFragment
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLTableSectionElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLTemplateElement
+import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.set
 import org.w3c.dom.get
 
@@ -181,11 +184,27 @@ class Posts {
         }
 
     /**
+     * max page number input
+     */
+    var maxPageNumberUi: Int?
+        get() {
+            return pageNumberInputElementUi?.let {
+                it.getAttribute("max")?.let { it.toIntOrNull() }
+            }
+        }
+        set(value) {
+            pageNumberInputElementUi?.let {
+                val valueStr = value?.let { it.toString() }?: ""
+                it.setAttribute("max", valueStr)
+            }
+        }
+
+    /**
      * the container element to show total page number
      */
-    val totalPageContainerElementUi: HTMLElement?
+    val numberOfPageContainerElementUi: HTMLElement?
         get() {
-            return document.body?.querySelector(".total-pages")
+            return document.body?.querySelector(".number-of-pages")
                 as HTMLElement?
         }
 
@@ -221,6 +240,22 @@ class Posts {
         }
 
     /**
+     * number of pages in user interface
+     */
+    var numberOfPageUi: Int?
+        get() {
+            return numberOfPageContainerElementUi?.let {
+                it.innerHTML.toIntOrNull()
+            }
+        }
+        set(value) {
+            val valueStr = value?.let { it.toString() } ?: ""
+            numberOfPageContainerElementUi?.let {
+                it.innerHTML = valueStr
+            }
+        }
+
+    /**
      * read slug 
      */
     val categorySlug: String? get() = readPostQueryFromLocation().categorySlug
@@ -232,6 +267,10 @@ class Posts {
      */
     var postParameterInputHdlr: ((Event)->Unit)? = null
 
+    /**
+     * post page related parameter handler
+     */
+    var postParameterByLineNumberPerPageHdlr: ((Event)->Unit)? = null
 
     /**
      * bind this object into html element
@@ -257,7 +296,7 @@ class Posts {
 
         pageNumberUi = postQuery.page
         linesPerPageUi = postQuery.lineCountPerPage
-        startUpdataDigestTable() 
+        startUpdateDigestTable() 
     }
 
     /**
@@ -267,17 +306,24 @@ class Posts {
         val postParameterInputHdlr: (Event)->Unit = {
             this.updatePostsDigest(it)
         }
+        val postParameterByLineNumberPerPageHdlr: (Event)->Unit = {
+            this.updatePostsDigestByLineCountPerPage(it)
+        }
+
         linesPerPageInputElementUi?.let {
-            it.addEventListener("blur", postParameterInputHdlr)
-            it.addEventListener("focus", postParameterInputHdlr)
-            it.addEventListener("keydown", postParameterInputHdlr)
+            it.addEventListener("blur", postParameterByLineNumberPerPageHdlr)
+            it.addEventListener("focus",
+                postParameterByLineNumberPerPageHdlr)
+            it.addEventListener("keydown",
+                postParameterByLineNumberPerPageHdlr)
         }
         pageNumberInputElementUi?.let {
             it.addEventListener("blur", postParameterInputHdlr)
             it.addEventListener("focus", postParameterInputHdlr)
             it.addEventListener("keydown", postParameterInputHdlr)
         }
-
+        this.postParameterByLineNumberPerPageHdlr =
+            postParameterByLineNumberPerPageHdlr
         this.postParameterInputHdlr = postParameterInputHdlr
     }
 
@@ -286,9 +332,12 @@ class Posts {
      */
     fun unbindDigest() {
         linesPerPageInputElementUi?.let {
-            it.removeEventListener("blur", postParameterInputHdlr)
-            it.removeEventListener("focus", postParameterInputHdlr)
-            it.removeEventListener("keydown", postParameterInputHdlr)
+            it.removeEventListener("blur",
+                postParameterByLineNumberPerPageHdlr)
+            it.removeEventListener("focus",
+                postParameterByLineNumberPerPageHdlr )
+            it.removeEventListener("keydown",
+                postParameterByLineNumberPerPageHdlr)
         }
         pageNumberInputElementUi?.let {
             it.removeEventListener("blur", postParameterInputHdlr)
@@ -314,18 +363,59 @@ class Posts {
             
         } else if (event.type == "keydown") {
             val keyEvent = event as KeyboardEvent
-            doUpdate = "Enter" == keyEvent.code
+            doUpdate = if ("Enter" == keyEvent.code) {
+                val inputElement = event.currentTarget as HTMLInputElement
+                inputElement.reportValidity()
+            } else {
+                false
+            }
         } else if (event.type == "focus") {
             saveLastInput(event.currentTarget as HTMLInputElement)
         }
         if (doUpdate) {
-            startUpdataDigestTable().then {
+            startUpdateDigestTable().then {
                 if (it) {
                     appendHistoryWithCurrentUi()
                 } 
             }
         }
     }
+
+    /**
+     * update posts digest with user interface 
+     */
+    fun updatePostsDigestByLineCountPerPage(event: Event) {
+
+        var doUpdate = false
+
+        if (event.type == "blur") {
+            val inputElement = event.currentTarget as HTMLInputElement
+            val lastInput = readLastInput(inputElement)
+            doUpdate = lastInput?.let {
+                it != inputElement.value
+            }?: false
+            
+        } else if (event.type == "keydown") {
+            val keyEvent = event as KeyboardEvent
+            doUpdate = if ("Enter" == keyEvent.code) {
+                val inputElement = event.currentTarget as HTMLInputElement
+                inputElement.reportValidity()
+            } else {
+                false
+            }
+        } else if (event.type == "focus") {
+            saveLastInput(event.currentTarget as HTMLInputElement)
+        }
+        if (doUpdate) {
+            pageNumberUi = 1 
+            startUpdateDigestTable().then {
+                if (it) {
+                    appendHistoryWithCurrentUi()
+                } 
+            }
+        }
+    }
+
 
     /**
      * save last input
@@ -359,7 +449,7 @@ class Posts {
     /**
      * do start update digest table
      */
-    fun startUpdataDigestTable(): Promise<Boolean> {
+    fun startUpdateDigestTable(): Promise<Boolean> {
         val categorySlug = this.categorySlug
         val linesPerPage = this.linesPerPageUi
         val pageNumber = this.pageNumberUi 
@@ -379,10 +469,19 @@ class Posts {
     /**
      * update posts table
      */
-    fun updatePostsTable(posts: Json): Boolean {
-        clearPosts()
-        addPosts(posts)
-        return true
+    fun updatePostsTable(postsContainer: Json): Boolean {
+        val posts = postsContainer["posts"] as Json
+        return if (posts["code"] == null) {
+            clearPosts()
+            addPosts(posts)
+            numberOfPageUi = postsContainer["total-pages"]?.let { 
+                it.toString().toIntOrNull()
+            } 
+            maxPageNumberUi = numberOfPageUi
+            true
+        } else {
+            false
+        }
     }
 
     /**
@@ -402,7 +501,7 @@ class Posts {
     fun addPosts(posts: Json) {
         digestBodyElementUi?.let {
             val body = it
-            val rows: dynamic = posts["posts"] 
+            val rows: dynamic = posts 
             for (idx in 0 until rows.length as Int) {
                 val row = createDigestRow(rows[idx] as Json)
                 body.append(row)
@@ -419,6 +518,14 @@ class Posts {
     }
 
     /**
+     * get digest row cell template
+     */
+    fun getCellTemplate(): HTMLTemplateElement? {
+        return document.body?.querySelector("#tmpl-post-cell")
+            as HTMLTemplateElement?
+    }
+
+    /**
      * create digest row
      */
     fun createDigestRow(post: Json): HTMLElement {
@@ -431,6 +538,22 @@ class Posts {
             rowElement = row
         }
         return rowElement!!
+    }
+
+    /**
+     * create cell element with post
+     */
+    fun createCellElement(post: Json): HTMLElement {
+        var cellElement: HTMLElement? = null
+
+        getCellTemplate()?.let {
+            val fragment = it.content.cloneNode(true) as DocumentFragment
+            val cell = fragment.firstElementChild as HTMLAnchorElement 
+            val postId = post["id"] as Int
+            cell.pathname += "${postId.toString()}/"
+            cellElement = cell 
+        }
+        return cellElement!!
     }
 
     /**
@@ -456,9 +579,13 @@ class Posts {
             )
         fillProcs.forEachIndexed {
             idx, elem ->
-            elem.second(row.children[idx] as HTMLElement, post[elem.first]!!)
+            val cell = createCellElement(post)
+            elem.second(cell, post[elem.first]!!)
+            (row.children[idx] as Element).append(cell)
         }
     }
+
+    
 }
 
 // vi: se ts=4 sw=4 et:
