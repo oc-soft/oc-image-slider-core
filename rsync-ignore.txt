@@ -1,2 +1,4 @@
 config/db.json
 wordpress/wp-config.php
+wordpress/wp-content/uploads
+wp-import.php
