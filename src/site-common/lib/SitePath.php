@@ -29,8 +29,8 @@ class SitePath {
     function resolve_path($path) {
         $functions_path = 
             $this->get_relative_functions_path_from_document_root();
-        $replacement = sprintf('%s${1}', $functions_path);
-        $replaced_path = preg_replace('/^\$\{functions-root\}(.*)/',
+        $replacement = sprintf('%s', $functions_path);
+        $replaced_path = preg_replace('/\$\{functions-root\}/',
             $replacement, $path);
         if ($replaced_path) {
             $result = $replaced_path;

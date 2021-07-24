@@ -45,104 +45,44 @@ class Posts {
      * class instance
      */
     companion object {
+        /**
+         * read post query 
+         */
+        fun readPostQuery(): PostQuery {
+            return ContentManagement.readPostQuery()
+        }
+
 
         /**
          * read post query from window location
          */
-        fun readPostQueryFromLocation(): PostQuery {
-            val queryFromPath = readPostQueryFromPath()
-            val queryFromSearch = readPostQueryFromSearch()
-            return if (queryFromPath != null) {
-                val query = queryFromPath
-                queryFromSearch?.let {
-                    query.lineCountPerPage = it.lineCountPerPage
-                } 
-                query 
-            } else {
-                queryFromSearch?: PostQuery()
-            }
+        fun readPostQueryFromLocation(): PostQuery? {
+            return ContentManagement.readPostQueryFromLocation()
         }
 
         /**
          * read cagegory and page from window location
          */
         fun readPostQueryFromPath(): PostQuery? {
-            val path = window.location.pathname
-            return ContentManagement.pathToParamMatcher.find(path)?.let {
-                val values = it.groupValues 
-                
-                val slug: String? = if (values.size > 1) {
-                    values[1]    
-                } else {
-                    null
-                }
-                val page: Int = if (values.size > 3) {
-                    values[3].toIntOrNull()?: 1
-                } else {
-                    1
-                }
-                PostQuery(page, 10, slug)
-            }
+            return ContentManagement.readPostQueryFromPath()
         }
+
 
         /**
          * read page and lines per page from document location
          */
         fun readPostQueryFromSearch(): PostQuery? {
-            val search = window.location.search
-            val result: PostQuery? = if (search.length > 1) {
-                val searchParams = URLSearchParams(search.substring(1))
-                val page: Int = searchParams.get("page")?.let {
-                    val page: Int = it.toIntOrNull()?.let {
-                        it
-                    }?: 1 
-                    page
-                }?: 1 
-                val linesPerPage: Int = 
-                    searchParams.get("lines-per-page")?.let {
-                    val linesPerPage = it.toIntOrNull()?.let {
-                        it
-                    }?: 10 
-                    linesPerPage
-                }?: 10
-                val slug: String? = searchParams.get("slug")
-                    
-                PostQuery(page, linesPerPage, slug)
-            } else {
-                null
-            }
-            return result
+            return ContentManagement.readPostQueryFromSearch()
         }
 
         /**
          * read digests
          */
         fun readPosts(page: Int, linesPerPage: Int,
-            categorySlug: String? = null): Promise<Json> {
-            val url = URL(
-                "${ContentManagement.currentSiteDirectory}posts.php",
-                window.location.origin)
-            val searchParams = url.searchParams
-            searchParams.append("read", "")
-            searchParams.append("page", page.toString())
-            searchParams.append("per_page", linesPerPage.toString())
-            categorySlug?.let {
-                searchParams.append("category-slug", it)
-            }
-            val response = json()
-            return window.fetch(url).then({
-                val headers = it.headers
-                headers.get("X-WP-Total")?.let {
-                    response["total-posts"] = it 
-                }
-                headers.get("X-WP-TotalPages")?.let {
-                    response["total-pages"] = it
-                }
-                it.json()
-            }).then({
-                response["posts"] = it
-                response
-            })
+            categorySlug: String? = null,
+            tagNames: Array<String> = Array<String>(0) { "" }): Promise<Json> {
+            return ContentManagement.readPosts(
+                page, linesPerPage, categorySlug, tagNames)
         }
     }
     /**
@@ -258,7 +198,13 @@ class Posts {
     /**
      * read slug 
      */
-    val categorySlug: String? get() = readPostQueryFromLocation().categorySlug
+    val categorySlug: String? get() = readPostQuery().categorySlug
+
+
+    /**
+     * read tag-names
+     */
+    val tagNames: Array<String> get() = readPostQuery().tagNames
 
 
  
@@ -292,7 +238,7 @@ class Posts {
      * synchronize user interface with current search params
      */
     fun syncUiWithUrlParam() {
-        val postQuery = readPostQueryFromLocation()
+        val postQuery = readPostQuery()
 
         pageNumberUi = postQuery.page
         linesPerPageUi = postQuery.lineCountPerPage
@@ -438,9 +384,10 @@ class Posts {
         val categorySlug = this.categorySlug
         val linesPerPage = this.linesPerPageUi
         val pageNumber = this.pageNumberUi 
-        if (categorySlug != null && pageNumber != null) {
+        val tagNames = this.tagNames
+        if (pageNumber != null) {
             val url = ContentManagement.buildUrl(
-                categorySlug, pageNumber, linesPerPage)         
+                categorySlug, pageNumber, linesPerPage, tagNames)         
             window.history.pushState(null, document.title, url.toString())
         } 
     }
@@ -453,8 +400,9 @@ class Posts {
         val categorySlug = this.categorySlug
         val linesPerPage = this.linesPerPageUi
         val pageNumber = this.pageNumberUi 
+        val tagNames = this.tagNames
         return if (linesPerPage != null && pageNumber != null) {
-            readPosts(pageNumber, linesPerPage, categorySlug).then({
+            readPosts(pageNumber, linesPerPage, categorySlug, tagNames).then({
                 updatePostsTable(it)
             })
         } else {

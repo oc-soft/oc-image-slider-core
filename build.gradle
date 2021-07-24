@@ -13,7 +13,8 @@ ext.appNames = [
     [ 'main', 'main' ],
     [ 'site-mgr', 'SiteManager' ],
     [ 'post-mgr', 'PostsManager' ],
-    [ 'post', 'Post' ]
+    [ 'post', 'Post' ],
+    [ 'message-mgr', 'MessageMgr' ]
 ]
 
 ext.jarApp = [
@@ -51,6 +52,12 @@ ext.webpackSetting = [
     postCssOutput: 'postCss.css',
 
 
+    messageMgrSrcTemplate: 'src/php/message-mgr-client-resources.php',
+    messageMgrStyleSrc: 'src/site/style/message-mgr-main.scss',
+    messageMgrHtmlOutput: 'message-mgr-client-resources.php',
+    messageMgrCssOutput: 'messageMgrCss.css',
+
+
 
     jsProgramDir: 'js',
     cssDir: 'css'
@@ -80,6 +87,7 @@ kotlin {
         compilations.create('siteMgr')
         compilations.create('postsMgr')
         compilations.create('post')
+        compilations.create('messageMgr')
 
         browser {
             webpackTask {
@@ -138,6 +146,9 @@ kotlin {
             dependsOn jsCommon
         }
         jsPost {
+            dependsOn jsCommon
+        }
+        jsMessageMgr{
             dependsOn jsCommon
         }
     }
@@ -238,37 +249,48 @@ task webpackGradleBuild {
             webpackSetting.postStyleSrc)
 
 
+        def messageMgrSrcTemplate = new File(projectDir,
+            webpackSetting.messageMgrSrcTemplate) 
+        def messageMgrStyleTemplate = new File(projectDir,
+            webpackSetting.messageMgrStyleSrc)
+
 
         def binding = [
             config: """{
-                |  projectDir: '${projectDir}',
-                |  libraryTarget: '${webpackSetting.libraryTarget}',
-                |  jsRootDir: '${jsRoot}',
-                |  mainHtmlOutput: '${webpackSetting.mainHtmlOutput}',
-                |  siteMgrHtmlOutput: '${webpackSetting.siteMgrHtmlOutput}',
-                |  postsMgrHtmlOutput: '${webpackSetting.postsMgrHtmlOutput}',
-                |  postHtmlOutput: '${webpackSetting.postHtmlOutput}',
-                |  programDir: '${webpackSetting.jsProgramDir}',
-                |  cssDir: '${webpackSetting.cssDir}',
-                |  mainProgramName: '${appNames[0][0]}',
-                |  mainSrcTemplate: '${mainSrcTemplate}',
-                |  mainSrcCss: '${mainStyleTemplate}',
-                |  siteMgrProgramName: '${appNames[1][0]}',
-                |  siteMgrSrcTemplate: '${siteMgrSrcTemplate}',
-                |  siteMgrSrcCss: '${siteMgrStyleTemplate}',
-                |  siteMgrDevEntry: '${siteMgrDceDevOutput}',
-                |  siteMgrEntry: '${siteMgrDceOutput}',
-                |  postsMgrProgramName: '${appNames[2][0]}',
-                |  postsMgrSrcTemplate: '${postsMgrSrcTemplate}',
-                |  postsMgrSrcCss: '${postsMgrStyleTemplate}',
-                |  postsMgrDevEntry: '${postsMgrDceDevOutput}',
-                |  postsMgrEntry: '${postsMgrDceOutput}',
-                |  postProgramName: '${appNames[3][0]}',
-                |  postSrcTemplate: '${postSrcTemplate}',
-                |  postSrcCss: '${postStyleTemplate}',
-                |  postDevEntry: '${postDceDevOutput}',
-                |  postEntry: '${postDceOutput}'
-                 |}""".stripMargin()
+            |  projectDir: '${projectDir}',
+            |  libraryTarget: '${webpackSetting.libraryTarget}',
+            |  jsRootDir: '${jsRoot}',
+            |  mainHtmlOutput: '${webpackSetting.mainHtmlOutput}',
+            |  siteMgrHtmlOutput: '${webpackSetting.siteMgrHtmlOutput}',
+            |  postsMgrHtmlOutput: '${webpackSetting.postsMgrHtmlOutput}',
+            |  postHtmlOutput: '${webpackSetting.postHtmlOutput}',
+            |  messageMgrHtmlOutput: '${webpackSetting.messageMgrHtmlOutput}',
+            |  programDir: '${webpackSetting.jsProgramDir}',
+            |  cssDir: '${webpackSetting.cssDir}',
+            |  mainProgramName: '${appNames[0][0]}',
+            |  mainSrcTemplate: '${mainSrcTemplate}',
+            |  mainSrcCss: '${mainStyleTemplate}',
+            |  siteMgrProgramName: '${appNames[1][0]}',
+            |  siteMgrSrcTemplate: '${siteMgrSrcTemplate}',
+            |  siteMgrSrcCss: '${siteMgrStyleTemplate}',
+            |  siteMgrDevEntry: '${siteMgrDceDevOutput}',
+            |  siteMgrEntry: '${siteMgrDceOutput}',
+            |  postsMgrProgramName: '${appNames[2][0]}',
+            |  postsMgrSrcTemplate: '${postsMgrSrcTemplate}',
+            |  postsMgrSrcCss: '${postsMgrStyleTemplate}',
+            |  postsMgrDevEntry: '${postsMgrDceDevOutput}',
+            |  postsMgrEntry: '${postsMgrDceOutput}',
+            |  postProgramName: '${appNames[3][0]}',
+            |  postSrcTemplate: '${postSrcTemplate}',
+            |  postSrcCss: '${postStyleTemplate}',
+            |  postDevEntry: '${postDceDevOutput}',
+            |  postEntry: '${postDceOutput}',
+            |  messageMgrProgramName: '${appNames[4][0]}',
+            |  messageMgrSrcTemplate: '${messageMgrSrcTemplate}',
+            |  messageMgrSrcCss: '${messageMgrStyleTemplate}',
+            |  messageMgrDevEntry: '${messageMgrDceDevOutput}',
+            |  messageMgrEntry: '${messageMgrDceOutput}'
+            |}""".stripMargin()
         ]
         def tmp = new groovy.text.StreamingTemplateEngine()
         tmp = tmp.createTemplate(gradleBuildSrc) 
@@ -301,6 +323,11 @@ def setupWebpack(def webpackTask) {
     def postStyleTemplate = new File(projectDir,
         webpackSetting.postStyleSrc)
 
+    def messageMgrSrcTemplate = new File(projectDir,
+        webpackSetting.messageMgrSrcTemplate) 
+    def messageMgrStyleTemplate = new File(projectDir,
+        webpackSetting.messageMgrStyleSrc)
+
 
     webpackTask.inputs.files mainSrcTemplate,
         mainStyleTemplate,
@@ -309,7 +336,9 @@ def setupWebpack(def webpackTask) {
         postsMgrSrcTemplate,
         postsMgrStyleTemplate,
         postSrcTemplate,
-        postStyleTemplate
+        postStyleTemplate,
+        messageMgrSrcTemplate,
+        messageMgrStyleTemplate
 
 
 
@@ -338,6 +367,10 @@ def setupWebpack(def webpackTask) {
     webpackTask.outputs.files new File(
         distDir, webpackSetting.postHtmlOutput),
         new File(cssOutDir, webpackSetting.postCssOutput)
+
+    webpackTask.outputs.files new File(
+        distDir, webpackSetting.messageMgrHtmlOutput),
+        new File(cssOutDir, webpackSetting.messageMgrCssOutput)
 
 
     webpackTask.dependsOn webpackGradleBuild
@@ -371,7 +404,8 @@ def getWebpackHtmlOutput() {
         new File(getDistributionDir(), webpackSetting.mainHtmlOutput),
         new File(getDistributionDir(), webpackSetting.siteMgrHtmlOutput),
         new File(getDistributionDir(), webpackSetting.postsMgrHtmlOutput),
-        new File(getDistributionDir(), webpackSetting.postHtmlOutput)
+        new File(getDistributionDir(), webpackSetting.postHtmlOutput),
+        new File(getDistributionDir(), webpackSetting.messageMgrHtmlOutput)
     ]
 }
 
@@ -632,6 +666,61 @@ jsBrowserDevelopmentWebpack.inputs.files getPostDceDevOutput()
 
 jsBrowserProductionWebpack.dependsOn postDce
 jsBrowserDevelopmentWebpack.dependsOn postDceDev
+
+
+task messageMgrDce(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to message manager js file'
+    def dceDir = getDceDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.messageMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+task messageMgrDceDev(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to message manager js file'
+    def dceDir = getDceDevDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.messageMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+/**
+ * get post dce output directory
+ */
+def getMessageMgrDceOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.messageMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(messageMgrDce.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+/**
+ * get post output directory
+ */
+def getMessageMgrDceDevOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.messageMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(messageMgrDceDev.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+jsBrowserProductionWebpack.inputs.files getMessageMgrDceOutput()
+jsBrowserDevelopmentWebpack.inputs.files getMessageMgrDceDevOutput()
+
+jsBrowserProductionWebpack.dependsOn messageMgrDce
+jsBrowserDevelopmentWebpack.dependsOn messageMgrDceDev
 
 
 buildSite.dependsOn siteMgrMsgFmt

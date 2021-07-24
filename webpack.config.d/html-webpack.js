@@ -28,6 +28,7 @@ class HtmlWebpack {
     this.setupHtmlPluginSiteMgr(config)
     this.setupHtmlPluginPostsMgr(config)
     this.setupHtmlPluginPost(config)
+    this.setupHtmlPluginMessageMgr(config)
   }
 
   /**
@@ -49,7 +50,9 @@ class HtmlWebpack {
       /postsMgr.*\.js/,
       /postsMgrCss.*\.(js|css)/,
       /post.*\.js/,
-      /postCss.*\.(js|css)/
+      /postCss.*\.(js|css)/,
+      /messageMgr.*\.js/,
+      /messageMgrCss.*\.(js|css)/
     ]
     config.plugins = config.plugins || []
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
@@ -77,7 +80,9 @@ class HtmlWebpack {
       /postsMgr.*\.js/,
       /postsMgrCss.*\.(js|css)/,
       /post.*\.js/,
-      /postCss.*\.(js|css)/
+      /postCss.*\.(js|css)/,
+      /messageMgr.*\.js/,
+      /messageMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -107,7 +112,9 @@ class HtmlWebpack {
       /siteMgrCss.*\.(js|css)/,
       /postsMgrCss.*\.js/,
       /post-.*\.js/,
-      /postCss.*\.(js|css)/
+      /postCss.*\.(js|css)/,
+      /messageMgr.*\.js/,
+      /messageMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -136,13 +143,46 @@ class HtmlWebpack {
       /siteMgrCss.*\.(js|css)/,
       /postsMgr.*\.js/,
       /postsMgrCss.*\.(js|css)/,
-      /postCss.*\.js/
+      /postCss.*\.js/,
+      /messageMgr.*\.js/,
+      /messageMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
     this.setupHtmlExcludeAssets(config)
   }
+
+  /**
+   * set html-webpack-plugin up
+   */
+  setupHtmlPluginMessageMgr(config) {
+    const HtmlWebpackPlugin = require('html-webpack-plugin');
+   
+    const htmlPluginConfig = {
+      inject: false,
+      cdnModule: 'messageMgr',
+      minify: false
+    }
+    htmlPluginConfig.filename = GradleBuild.config.messageMgrHtmlOutput
+    htmlPluginConfig.template = GradleBuild.config.messageMgrSrcTemplate
+    htmlPluginConfig.excludeAssets = [
+      /mainCss.*\.(js|css)/,
+      /main.*\.js/,
+      /siteMgr.*\.js/,
+      /siteMgrCss.*\.(js|css)/,
+      /postsMgr.*\.js/,
+      /postsMgrCss.*\.(js|css)/,
+      /post.*\.js/,
+      /postCss.*\.(js|css)/,
+      /messageMgrCss.*\.js/
+    ]
+
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+  }
+
 
 
   setupHtmlExcludeAssets(config) {
@@ -199,7 +239,8 @@ class HtmlWebpack {
         main: basicModuleSetting,
         siteMgr: basicModuleSetting,
         postsMgr: basicModuleSetting,
-        post: basicModuleSetting
+        post: basicModuleSetting,
+        messageMgr: basicModuleSetting
       }
     }
     cdnPluginConfig.pathToNodeModules = GradleBuild.config.jsRootDir
