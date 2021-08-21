@@ -15,11 +15,13 @@ class Entries {
       config.entry.postsMgr = GradleBuild.config.postsMgrDevEntry
       config.entry.post = GradleBuild.config.postDevEntry,
       config.entry.messageMgr = GradleBuild.config.messageMgrDevEntry
+      config.entry.workUsMgr = GradleBuild.config.workUsMgrDevEntry
     } else {
       config.entry.siteMgr = GradleBuild.config.siteMgrEntry
       config.entry.postsMgr = GradleBuild.config.postsMgrEntry
       config.entry.post = GradleBuild.config.postEntry
       config.entry.messageMgr = GradleBuild.config.messageMgrEntry
+      config.entry.workUsMgr = GradleBuild.config.workUsMgrEntry
     }
  
     config.entry.mainCss = GradleBuild.config.mainSrcCss
@@ -27,6 +29,7 @@ class Entries {
     config.entry.postsMgrCss = GradleBuild.config.postsMgrSrcCss
     config.entry.postCss = GradleBuild.config.postSrcCss
     config.entry.messageMgrCss = GradleBuild.config.messageMgrSrcCss
+    config.entry.workUsMgrCss = GradleBuild.config.workUsMgrSrcCss
   }
 }
 

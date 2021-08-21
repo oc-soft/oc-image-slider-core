@@ -1,4 +1,5 @@
 config/db.json
+config/message.json
 wordpress/wp-config.php
 wordpress/wp-content/uploads
 wp-import.php

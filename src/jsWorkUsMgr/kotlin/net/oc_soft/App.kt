@@ -6,11 +6,8 @@ import kotlin.collections.Map
 import kotlin.collections.MutableMap
 import kotlin.collections.HashMap
 
-import kotlin.text.toBoolean
-
 import kotlinx.browser.window
 import kotlinx.browser.document
-
 
 import org.w3c.dom.HTMLElement 
 import org.w3c.dom.HTMLFormElement
@@ -28,7 +25,8 @@ class App(
     /**
      * mange modal for verify dialog
      */
-    val modalVerify: ModalVerify = ModalVerify()) { 
+    val modalVerify: ModalVerify = ModalVerify(),
+    val jobSelector: JobSelector = JobSelector()) { 
 
     /**
      * class instance
@@ -53,7 +51,7 @@ class App(
          * send message
          */
         fun sendMessage(parameter: Map<String, String>): Promise<String> {
-            val url = URL("${currentSiteDirectory}message.php",
+            val url = URL("${currentSiteDirectory}work-us.php",
                 window.location.origin)
             val searchParams = url.searchParams
             parameter.forEach {
@@ -84,30 +82,6 @@ class App(
             return document.querySelector(".contact-us")
                 as HTMLFormElement?
         }
-
-
-    /**
-     * selector for service kind
-     */
-    val serviceKindSelectUi: HTMLSelectElement?
-        get() {
-            return formElementUi?.let {
-                it.querySelector("select[name='jsk-service-kind']")
-                    as HTMLSelectElement?
-            }
-        }
-
-    /**
-     * the user interface to control enable or not about tour
-     */
-    val visitingElementUi: HTMLInputElement?
-        get() {
-            return formElementUi?.let {
-                it.querySelector("input[name='jsk-visiting-request']")
-                    as HTMLInputElement?
-            }
-        }
-
 
     /**
      * command handler to verify
@@ -142,6 +116,9 @@ class App(
         modalVerify.bind()
         modalVerify.addEventListener("send", sendCmdHdlr)
         modalVerify.addEventListener("cancel", cancelCmdHdlr)
+
+
+        jobSelector.bind()
         verifyElementUi?.let {
             it.addEventListener("click", verifyCmdHdlr)
         }
@@ -155,6 +132,7 @@ class App(
      * detach this application from html elements
      */
     fun unbind() {
+        jobSelector.unbind()
         modalVerify.unbind()
         sendCmdHdlr?.let {
             modalVerify.removeEventListener("send", it)
@@ -194,25 +172,6 @@ class App(
 
 
     /**
-     * synchronize visiting request user interface with service kind selector
-     */
-    fun syncVisigingRequestWithSelectedService() {
-        var tourEnable = false 
-        serviceKindSelectUi?.let {
-            val options = it.selectedOptions
-            if (options.length > 0) {
-                val elem = options[0] as HTMLElement
-                elem.dataset["visiting"]?.let {
-                    tourEnable = it.toBoolean() 
-                }
-            }
-        }
-    }
-
-    
-
-
-    /**
      * send message for verify
      */
     fun sendMessageForVerify(): Promise<String?> {
@@ -232,13 +191,7 @@ class App(
             val inputElements = it.querySelectorAll("input")
             for (idx in 0 until inputElements.length) {
                 val inputElem = inputElements[idx] as HTMLInputElement
-                if (inputElem.type == "checkbox") {
-                    if (inputElem.checked) {
-                        result[inputElem.name] = inputElem.value
-                    }
-                } else {
-                    result[inputElem.name] = inputElem.value
-                }
+                result[inputElem.name] = inputElem.value
             }
             val selectElements = it.querySelectorAll("select") 
             for (idx in 0 until selectElements.length) {

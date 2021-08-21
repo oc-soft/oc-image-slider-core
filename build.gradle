@@ -14,7 +14,8 @@ ext.appNames = [
     [ 'site-mgr', 'SiteManager' ],
     [ 'post-mgr', 'PostsManager' ],
     [ 'post', 'Post' ],
-    [ 'message-mgr', 'MessageMgr' ]
+    [ 'message-mgr', 'MessageMgr' ],
+    [ 'work-us-mgr', 'WorkUsMgr' ]
 ]
 
 ext.jarApp = [
@@ -58,6 +59,11 @@ ext.webpackSetting = [
     messageMgrCssOutput: 'messageMgrCss.css',
 
 
+    workUsMgrSrcTemplate: 'src/php/work-us-mgr-client-resources.php',
+    workUsMgrStyleSrc: 'src/site/style/work-us-mgr-main.scss',
+    workUsMgrHtmlOutput: 'work-us-mgr-client-resources.php',
+    workUsMgrCssOutput: 'workUsMgrCss.css',
+
 
     jsProgramDir: 'js',
     cssDir: 'css'
@@ -88,6 +94,7 @@ kotlin {
         compilations.create('postsMgr')
         compilations.create('post')
         compilations.create('messageMgr')
+        compilations.create('workUsMgr')
 
         browser {
             webpackTask {
@@ -126,12 +133,12 @@ kotlin {
                 compileOnly npm('webpack-cdn-plugin', '>=3.3.1')
                 compileOnly npm('clean-webpack-plugin', '>=4.0.0-alpha.0')
                 compileOnly npm('html-webpack-skip-assets-plugin', '>=1.0.1')
-                compileOnly npm('mini-css-extract-plugin', '>=1.4.0')
+                compileOnly npm('mini-css-extract-plugin', '^1.4.0')
                 compileOnly npm('@fortawesome/fontawesome-free', '>=5.15.1')
-                compileOnly npm('bootstrap', '>=4.5.3')
+                compileOnly npm('bootstrap', '>=5.0.0')
                 compileOnly npm('jquery', '>=3.5.1')
                 compileOnly npm('sass', '>=1.32.8')
-                compileOnly npm('css-loader', '>=5.2.0')
+                compileOnly npm('css-loader', '^5.2.0')
                 compileOnly npm('sass-loader', '^10.1.1')
                 compileOnly npm('@popperjs/core', '>=2.9.2')
             }
@@ -149,6 +156,9 @@ kotlin {
             dependsOn jsCommon
         }
         jsMessageMgr{
+            dependsOn jsCommon
+        }
+        jsWorkUsMgr{
             dependsOn jsCommon
         }
     }
@@ -254,6 +264,11 @@ task webpackGradleBuild {
         def messageMgrStyleTemplate = new File(projectDir,
             webpackSetting.messageMgrStyleSrc)
 
+        def workUsMgrSrcTemplate = new File(projectDir,
+            webpackSetting.workUsMgrSrcTemplate) 
+        def workUsMgrStyleTemplate = new File(projectDir,
+            webpackSetting.workUsMgrStyleSrc)
+
 
         def binding = [
             config: """{
@@ -265,6 +280,7 @@ task webpackGradleBuild {
             |  postsMgrHtmlOutput: '${webpackSetting.postsMgrHtmlOutput}',
             |  postHtmlOutput: '${webpackSetting.postHtmlOutput}',
             |  messageMgrHtmlOutput: '${webpackSetting.messageMgrHtmlOutput}',
+            |  workUsMgrHtmlOutput: '${webpackSetting.workUsMgrHtmlOutput}',
             |  programDir: '${webpackSetting.jsProgramDir}',
             |  cssDir: '${webpackSetting.cssDir}',
             |  mainProgramName: '${appNames[0][0]}',
@@ -289,7 +305,12 @@ task webpackGradleBuild {
             |  messageMgrSrcTemplate: '${messageMgrSrcTemplate}',
             |  messageMgrSrcCss: '${messageMgrStyleTemplate}',
             |  messageMgrDevEntry: '${messageMgrDceDevOutput}',
-            |  messageMgrEntry: '${messageMgrDceOutput}'
+            |  messageMgrEntry: '${messageMgrDceOutput}',
+            |  workUsMgrProgramName: '${appNames[5][0]}',
+            |  workUsMgrSrcTemplate: '${workUsMgrSrcTemplate}',
+            |  workUsMgrSrcCss: '${workUsMgrStyleTemplate}',
+            |  workUsMgrDevEntry: '${workUsMgrDceDevOutput}',
+            |  workUsMgrEntry: '${workUsMgrDceOutput}'
             |}""".stripMargin()
         ]
         def tmp = new groovy.text.StreamingTemplateEngine()
@@ -328,6 +349,12 @@ def setupWebpack(def webpackTask) {
     def messageMgrStyleTemplate = new File(projectDir,
         webpackSetting.messageMgrStyleSrc)
 
+    def workUsMgrSrcTemplate = new File(projectDir,
+        webpackSetting.workUsMgrSrcTemplate) 
+    def workUsMgrStyleTemplate = new File(projectDir,
+        webpackSetting.workUsMgrStyleSrc)
+
+
 
     webpackTask.inputs.files mainSrcTemplate,
         mainStyleTemplate,
@@ -338,7 +365,10 @@ def setupWebpack(def webpackTask) {
         postSrcTemplate,
         postStyleTemplate,
         messageMgrSrcTemplate,
-        messageMgrStyleTemplate
+        messageMgrStyleTemplate,
+        workUsMgrSrcTemplate,
+        workUsMgrStyleTemplate
+
 
 
 
@@ -373,6 +403,11 @@ def setupWebpack(def webpackTask) {
         new File(cssOutDir, webpackSetting.messageMgrCssOutput)
 
 
+    webpackTask.outputs.files new File(
+        distDir, webpackSetting.workUsMgrHtmlOutput),
+        new File(cssOutDir, webpackSetting.workUsMgrCssOutput)
+
+
     webpackTask.dependsOn webpackGradleBuild
 }
 
@@ -405,7 +440,8 @@ def getWebpackHtmlOutput() {
         new File(getDistributionDir(), webpackSetting.siteMgrHtmlOutput),
         new File(getDistributionDir(), webpackSetting.postsMgrHtmlOutput),
         new File(getDistributionDir(), webpackSetting.postHtmlOutput),
-        new File(getDistributionDir(), webpackSetting.messageMgrHtmlOutput)
+        new File(getDistributionDir(), webpackSetting.messageMgrHtmlOutput),
+        new File(getDistributionDir(), webpackSetting.workUsMgrHtmlOutput)
     ]
 }
 
@@ -721,6 +757,60 @@ jsBrowserDevelopmentWebpack.inputs.files getMessageMgrDceDevOutput()
 
 jsBrowserProductionWebpack.dependsOn messageMgrDce
 jsBrowserDevelopmentWebpack.dependsOn messageMgrDceDev
+
+task workUsMgrDce(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to work-us  manager js file'
+    def dceDir = getDceDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.workUsMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+task workUsMgrDceDev(
+    type: org.jetbrains.kotlin.gradle.tasks.KotlinJsDce) {
+    description 'apply dead code eliminating to work-usmanager js file'
+    def dceDir = getDceDevDir() 
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.workUsMgr
+    } 
+    setupDceTask(it, compilation, dceDir)
+}
+
+/**
+ * get work-us dce output directory
+ */
+def getWorkUsMgrDceOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.workUsMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(workUsMgrDce.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+/**
+ * get work-us output directory
+ */
+def getWorkUsMgrDceDevOutput() {
+    def compilation = null
+    kotlin.js {
+        compilation = owner.compilations.workUsMgr
+    }
+    def kotlinTask = compilation.compileKotlinTask
+    return new File(workUsMgrDceDev.destinationDir, 
+        kotlinTask.outputFile.name)       
+}
+
+jsBrowserProductionWebpack.inputs.files getWorkUsMgrDceOutput()
+jsBrowserDevelopmentWebpack.inputs.files getWorkUsMgrDceDevOutput()
+
+jsBrowserProductionWebpack.dependsOn workUsMgrDce
+jsBrowserDevelopmentWebpack.dependsOn workUsMgrDceDev
 
 
 buildSite.dependsOn siteMgrMsgFmt

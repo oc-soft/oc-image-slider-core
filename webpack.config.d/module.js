@@ -18,7 +18,8 @@ class Module {
         commonjs: 'jquery',
         commonjs2:'jquery',
         root: 'jQuery'
-      }
+      },
+      kotlin: 'kotlin'
     })
   }
  

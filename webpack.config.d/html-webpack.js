@@ -29,6 +29,7 @@ class HtmlWebpack {
     this.setupHtmlPluginPostsMgr(config)
     this.setupHtmlPluginPost(config)
     this.setupHtmlPluginMessageMgr(config)
+    this.setupHtmlPluginWorkUsMgr(config)
   }
 
   /**
@@ -52,7 +53,9 @@ class HtmlWebpack {
       /post.*\.js/,
       /postCss.*\.(js|css)/,
       /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/
+      /messageMgrCss.*\.(js|css)/,
+      /workUsMgr.*\.js/,
+      /workUsMgrCss.*\.(js|css)/
     ]
     config.plugins = config.plugins || []
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
@@ -82,7 +85,9 @@ class HtmlWebpack {
       /post.*\.js/,
       /postCss.*\.(js|css)/,
       /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/
+      /messageMgrCss.*\.(js|css)/,
+      /workUsMgr.*\.js/,
+      /workUsMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -114,7 +119,9 @@ class HtmlWebpack {
       /post-.*\.js/,
       /postCss.*\.(js|css)/,
       /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/
+      /messageMgrCss.*\.(js|css)/,
+      /workUsMgr.*\.js/,
+      /workUsMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -145,7 +152,9 @@ class HtmlWebpack {
       /postsMgrCss.*\.(js|css)/,
       /postCss.*\.js/,
       /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/
+      /messageMgrCss.*\.(js|css)/,
+      /workUsMgr.*\.js/,
+      /workUsMgrCss.*\.(js|css)/
     ]
 
     config.plugins = config.plugins || []
@@ -175,6 +184,8 @@ class HtmlWebpack {
       /postsMgrCss.*\.(js|css)/,
       /post.*\.js/,
       /postCss.*\.(js|css)/,
+      /workUsMgr.*\.js/,
+      /workUsMgrCss.*\.(js|css)/,
       /messageMgrCss.*\.js/
     ]
 
@@ -182,6 +193,39 @@ class HtmlWebpack {
     config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
     this.setupHtmlExcludeAssets(config)
   }
+
+  /**
+   * set html-webpack-plugin up
+   */
+  setupHtmlPluginWorkUsMgr(config) {
+    const HtmlWebpackPlugin = require('html-webpack-plugin')
+   
+    const htmlPluginConfig = {
+      inject: false,
+      cdnModule: 'workUsMgr',
+      minify: false
+    }
+    htmlPluginConfig.filename = GradleBuild.config.workUsMgrHtmlOutput
+    htmlPluginConfig.template = GradleBuild.config.workUsMgrSrcTemplate
+    htmlPluginConfig.excludeAssets = [
+      /mainCss.*\.(js|css)/,
+      /main.*\.js/,
+      /siteMgr.*\.js/,
+      /siteMgrCss.*\.(js|css)/,
+      /postsMgr.*\.js/,
+      /postsMgrCss.*\.(js|css)/,
+      /post.*\.js/,
+      /postCss.*\.(js|css)/,
+      /messageMgr.*\.js/,
+      /messageMgrCss.*\.(js|css)/,
+      /workUsMgrCss.*\.js/
+    ]
+
+    config.plugins = config.plugins || []
+    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
+    this.setupHtmlExcludeAssets(config)
+  }
+
 
 
 
@@ -240,7 +284,8 @@ class HtmlWebpack {
         siteMgr: basicModuleSetting,
         postsMgr: basicModuleSetting,
         post: basicModuleSetting,
-        messageMgr: basicModuleSetting
+        messageMgr: basicModuleSetting,
+        workUsMgr: basicModuleSetting,
       }
     }
     cdnPluginConfig.pathToNodeModules = GradleBuild.config.jsRootDir
