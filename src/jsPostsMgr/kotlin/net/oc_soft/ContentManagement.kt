@@ -30,7 +30,6 @@ class ContentManagement {
                 return Regex("/((\\w)(/([-\\w]+))?)/(page/(\\d+)/?)*$") 
             }
 
-
         /**
          * current site directory
          */
@@ -124,25 +123,26 @@ class ContentManagement {
             val result: PostQuery? = if (search.length > 1) {
                 val searchParams = URLSearchParams(search.substring(1))
                 val queryFromGlobal = readPostQueryFromGlobal()
-                var page = queryFromGlobal?.let {
-                    it.page
-                }?: 1
+                var page = 1
+                queryFromGlobal?.let {
+                    page = it.page
+                }
                 searchParams.get("page")?.let {
                     it.toIntOrNull()?.let {
                         page = it
                     }
                 } 
-                var linesPerPage = queryFromGlobal?.let {
-                    it.lineCountPerPage
-                }?: 10
+                var linesPerPage:Int = if (queryFromGlobal != null) {
+                    queryFromGlobal.lineCountPerPage
+                } else 10
                 searchParams.get("lines-per-page")?.let {
                     it.toIntOrNull()?.let {
                         linesPerPage = it
                     } 
                 }
-                var categorySlug = queryFromGlobal?.let {
-                    it.categorySlug
-                }
+                var categorySlug: String? = if (queryFromGlobal != null) {
+                    queryFromGlobal.categorySlug
+                } else null
                 searchParams.get("category-slug")?.let {
                     categorySlug = it
                 }
@@ -178,6 +178,7 @@ class ContentManagement {
                     } else {
                         1
                     }
+
                     value = postQuery["lines-per-page"]
                     val lineCountPerPage: Int = if (value != null) {
                         value.toIntOrNull()?: 10 

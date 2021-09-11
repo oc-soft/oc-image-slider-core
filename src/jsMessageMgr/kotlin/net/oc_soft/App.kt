@@ -1,10 +1,12 @@
 package net.oc_soft
 
 import kotlin.js.Promise
+import kotlin.js.Json
 
 import kotlin.collections.Map
 import kotlin.collections.MutableMap
 import kotlin.collections.HashMap
+import kotlin.collections.LinkedHashMap
 
 import kotlin.text.toBoolean
 
@@ -20,13 +22,18 @@ import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.url.URL
 import org.w3c.dom.events.Event
 import org.w3c.dom.get
+import org.w3c.fetch.Response
 
 /**
  * application
  */
 class App(
     /**
-     * mange modal for verify dialog
+     * manage address user interface
+     */
+    val address: Address = Address(),
+    /**
+     * manage modal for verify dialog
      */
     val modalVerify: ModalVerify = ModalVerify()) { 
 
@@ -63,6 +70,64 @@ class App(
             val result = window.fetch(url).then({
                 it.text()
             }).then({ it })
+            return result
+        }
+
+
+        /**
+         * convert json to postal number
+         */
+        fun jsonToPostalNumber(
+            postalJson: Json): Map<String, Array<String>> {
+
+            val result = LinkedHashMap<String, Array<String>>()
+
+            val keys: dynamic = js("Object.keys(postalJson)") 
+            for (idx in 0 until (keys.length as Number).toInt()) {
+                val key = keys[idx].toString()
+                val values: dynamic = postalJson[key] 
+                val valuesLength = (values.length as Number).toInt()
+                val valueArray = Array<String>(valuesLength) {
+                    values[it]
+                }
+                result[key] = valueArray
+            }
+            return result
+        }
+
+
+        /**
+         * convert json to precture city map
+         */
+        fun jsonToPrefCity(
+            prefCity: Json): 
+                Map<String, Map<String, Map<String, Array<String>>>> {
+            val result = LinkedHashMap<
+                String, Map<String, Map<String, Array<String>>>>()
+            val keys0: dynamic = js("Object.keys(prefCity)") 
+            for (idx0 in 0 until (keys0.length as Number).toInt()) {
+                val map0 = LinkedHashMap<String, Map<String, Array<String>>>()  
+                val key0 = keys0[idx0] as String
+                val pcMap0: dynamic = prefCity[key0]
+                val keys1: dynamic = js("Object.keys(pcMap0)")
+                for (idx1 in 0 until (keys1.length as Number).toInt()) {
+                    val map1 = LinkedHashMap<String, Array<String>>() 
+                    val key1 = keys1[idx1] as String
+                    val pcMap1: dynamic = pcMap0[key1]
+                    val keys2: dynamic = js("Object.keys(pcMap1)")
+                    for (idx2 in 0 until (keys2.length as Number).toInt()) {
+                        val key2 = keys2[idx2] as String
+                        val pcArray2: dynamic = pcMap1[key2]
+                        val keys2Length = (pcArray2.length as Number).toInt()
+                        val items = Array<String>(keys2Length) {
+                            pcArray2[it] as String
+                        } 
+                        map1[key2] = items
+                    }
+                    map0[key1] = map1
+                }
+                result[key0] = map0
+            }
             return result
         }
     }
@@ -124,6 +189,26 @@ class App(
      */
     var cancelCmdHdlr: ((String, ModalVerify)->Unit)? = null
 
+
+    /**
+     * postal number address mapping
+     */
+    var postalNumberMap: Map<String, Array<String>>? = null 
+        set(value: Map<String, Array<String>>?) {
+            field = value 
+            address.postalNumberPrefCityMap = value
+        }
+
+    /**
+     * prefecture city map
+     */
+    var prefCityMap: 
+        Map<String, Map<String, Map<String, Array<String>>>>? = null 
+        set(value) {
+            field = value
+            address.prefCityMap = value 
+        }
+
     /**
      * bind this application into html elements
      */
@@ -147,7 +232,12 @@ class App(
         }
         this.verifyCmdHdlr = verifyCmdHdlr
         this.sendCmdHdlr = sendCmdHdlr
-        this.cancelCmdHdlr  = cancelCmdHdlr
+        this.cancelCmdHdlr = cancelCmdHdlr
+        
+        address.bind(document.body!!)
+
+        startLoadPostalNumberMap()
+        startLoadPrefectureCityMap()
     }
 
 
@@ -155,6 +245,7 @@ class App(
      * detach this application from html elements
      */
     fun unbind() {
+        address.unbind() 
         modalVerify.unbind()
         sendCmdHdlr?.let {
             modalVerify.removeEventListener("send", it)
@@ -272,6 +363,61 @@ class App(
     fun handleEventToCancleMessage(kind: String, sender: ModalVerify) {
         modalVerify.hide()
     }
+
+
+    /**
+     * start to load postal number map
+     */
+    fun startLoadPostalNumberMap() {
+        
+        val url = URL("${currentSiteDirectory}address-jp.php",
+            window.location.origin)
+        val searchParams = url.searchParams
+        searchParams.append("address", "postal-number.json")
+
+        window.fetch(url).then({
+            if (it.ok) {
+                it.json()
+            } else {
+                Promise<Any?> { 
+                    resolve, _ ->
+                    resolve(null)
+                }
+            } 
+        }).then({
+            it?.let {
+                postalNumberMap = jsonToPostalNumber(it as Json) 
+                
+            }
+        })
+    }
+
+    /**
+     * start to load prefecture city map 
+     */
+    fun startLoadPrefectureCityMap() {
+        val url = URL("${currentSiteDirectory}address-jp.php",
+            window.location.origin)
+        val searchParams = url.searchParams
+        searchParams.append("address", "pref-city.json")
+
+        window.fetch(url).then({
+            if (it.ok) {
+                it.json()
+            } else {
+                Promise<Any?> { 
+                    resolve, _ ->
+                    resolve(null)
+                }
+            } 
+        }).then({
+            it?.let {
+                prefCityMap = jsonToPrefCity(it as Json) 
+            }
+        })
+    }
+
+
 
     
 
