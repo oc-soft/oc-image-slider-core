@@ -28,6 +28,11 @@ ext.jarWpFetchApp = [
     exeSh: "wpfetch.sh"
 ]
 
+ext.jarJpAddrConvApp = [
+    output: "${buildDir}/jar/${rootProject.name}-jpAddrConv",
+    exeSh: "jpAddrConv.sh"
+]
+
 ext.webpackSetting = [
     gradleBuildJs: 'gradle-build.js',
     libraryTarget: 'umd',
@@ -81,12 +86,25 @@ ext.karmaWebpackSetting = [
 ext.buildSiteDependsMode = 'Development'
 // ext.buildSiteDependsMode = 'Production'
 
-
+ext.jpAddrSetting = [
+    addressSource: "address-jp/address.csv",
+    options: [
+        [
+            convopt: "ZIP",
+            output: "postal-number.json"
+        ],
+        [
+            convopt: "PREF_CITY",
+            output: "pref-city.json"
+        ]
+    ]
+]
 
 
 kotlin {
     jvm {
         compilations.create('wpFetch')
+        compilations.create('jpAddrConv')
     }
 
     js {
@@ -121,6 +139,15 @@ kotlin {
         jvmWpFetch {
             dependsOn jvmCommon
 
+        }
+
+        jvmJpAddrConv {
+            dependsOn jvmCommon
+            dependencies {
+                implementation 'gnu.getopt:java-getopt:1.0.13'
+                implementation 'com.google.guava:guava:23.0'
+                implementation 'org.apache.commons:commons-csv:1.9.0'
+            }
         }
  
         jsCommon {
@@ -526,8 +553,10 @@ def setupDceTask(def dceTask,
         def npmProject = createNpmProject(compilation)
         dceTask.destinationDir = new File(npmProject.dir, dceDir)
     }
+    
     dceTask.source(compilation.compileKotlinTask.outputFile)
     dceTask.dependsOn compilation.compileKotlinTask
+    dceTask.inputs.files compilation.compileKotlinTask.outputFile
 }
 
 
@@ -904,6 +933,64 @@ task createWpFetchAppScript {
 
 createWpFetchAppScript.dependsOn copyDependsWpFetchJar
 
+task jvmJpAddrConvJar(type: Jar) {
+    def comp = kotlin.targets.jvm.compilations['jpAddrConv']
+    from comp.output.allOutputs
+    archiveFileName = "${project.name}-${comp.compilationName}.jar"
+}
+
+jvmJpAddrConvJar.dependsOn jvmJpAddrConvClasses
+
+task copyDependsJpAddrConvJar {
+    doLast {
+        def classes = getRuntimeDependencyFiles('jpAddrConv')
+        classes += jvmJpAddrConvJar.archivePath
+
+        copy {
+            from classes
+            into jarJpAddrConvApp.output
+        }
+    }
+}
+
+copyDependsJpAddrConvJar.dependsOn jvmJpAddrConvJar
+
+task createJpAddrConvAppScript {
+
+    doLast {
+        def classes = getRuntimeDependencyFiles('jpAddrConv')
+        classes += jvmJpAddrConvJar.archivePath
+
+         
+        def classPathArray = []
+        classes.each {
+            classPathArray.add("\${JAR_ROOT_DIR}/${it.name}")
+        }
+    
+        def classPaths = classPathArray.join(':') 
+        def binding = [
+            classpaths: "-cp \"${classPaths}\"",
+            mainclass: 'net.oc_soft.App'
+        ]
+        def runJarSrc0 = new File("${projectDir}/tools/run-jar-0.sh")
+        def runJarSrc1 = new File("${projectDir}/tools/run-jar-1.sh")
+        def tmp = new groovy.text.StreamingTemplateEngine()
+        tmp = tmp.createTemplate(runJarSrc1)
+        def jarSh = runJarSrc0.text + tmp.make(binding)
+
+
+        def shPath = new File(
+            "${jarJpAddrConvApp.output}/${jarJpAddrConvApp.exeSh}")
+        shPath.text = jarSh
+        shPath.executable = true
+
+    }
+}
+
+
+createJpAddrConvAppScript.dependsOn copyDependsJpAddrConvJar
+
+
 
 task copyWpToWebSite {
 
@@ -921,4 +1008,36 @@ task copyWpToWebSite {
 
 buildSite.dependsOn copyWpToWebSite
 
+
+task generateJpAddrResource {
+
+    def exePath = "${jarJpAddrConvApp.output}/${jarJpAddrConvApp.exeSh}"
+    def sgenSetting = readSgenSetting()
+    def outdir = "${sgenSetting['output-root']}/address-jp"
+    jpAddrSetting.options.each {
+        outputs.files new File(outdir, it.output)
+    }
+    inputs.files new File(projectDir, jpAddrSetting.addressSource)
+
+    doLast {
+        mkdir outdir
+        jpAddrSetting.options.each {
+            def outputStream = new FileOutputStream(
+                "${outdir}/${it.output}")
+            def convopt = it.convopt
+            exec {
+                workingDir projectDir
+                executable = exePath
+                args "-c", convopt
+                args "-f", "${projectDir}/${jpAddrSetting.addressSource}"
+                standardOutput outputStream
+            } 
+            outputStream.close()
+        } 
+    }
+}
+
+generateJpAddrResource.dependsOn createJpAddrConvAppScript
+
+buildSite.dependsOn generateJpAddrResource
 // vi: se ts=4 sw=4 et:
