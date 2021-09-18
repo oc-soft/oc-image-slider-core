@@ -7,7 +7,14 @@ import net.oc_soft.track.Tracker
 import net.oc_soft.InitEffect
 
 class App(
-    val initEffect: InitEffect = InitEffect()) {
+    /**
+     * initial effect
+     */
+    val initEffect: InitEffect = InitEffect(),
+    /**
+     * lazy video loader
+     */
+    val video: Video = Video()) {
 
 
     /**
@@ -31,12 +38,15 @@ class App(
 
         initEffect.ownerElement = document.body
         initEffect.finishedLoaded()
+
+        video.startLoadResource()
     }
 
     /**
      * unbind this object from html elements
      */
     fun unbind() {
+        video.unbind()
         initEffect.unbind()
 
         val tracker = this.tracker
