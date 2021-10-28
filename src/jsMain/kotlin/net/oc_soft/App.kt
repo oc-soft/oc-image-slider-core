@@ -6,6 +6,12 @@ import kotlinx.browser.window
 import net.oc_soft.track.Tracker
 import net.oc_soft.InitEffect
 
+import org.w3c.dom.HTMLElement
+import org.w3c.dom.HTMLMediaElement
+import org.w3c.dom.HTMLVideoElement
+import org.w3c.dom.events.Event
+import org.w3c.dom.get
+
 class App(
     /**
      * initial effect
@@ -16,6 +22,13 @@ class App(
      */
     val video: Video = Video()) {
 
+    /**
+     * banner video
+     */
+    val bannerVideo: HTMLElement?
+        get() {
+            return document.querySelector("div.movie video") as HTMLElement?
+        }
 
     /**
      * tack user activity
@@ -26,6 +39,12 @@ class App(
      * simulate anchor element
      */
     var anchor: Anchor? = null
+
+
+    /**
+     * event handler for banner video at ended
+     */
+    var bannerVideoEndedHdlr: ((Event)->Unit)? = null
 
     /**
      * bind this object into html element
@@ -40,12 +59,14 @@ class App(
         initEffect.finishedLoaded()
 
         video.startLoadResource()
+        bindTopBannerVideo()
     }
 
     /**
      * unbind this object from html elements
      */
     fun unbind() {
+        unbindTopBannerVideo()
         video.unbind()
         initEffect.unbind()
 
@@ -61,6 +82,47 @@ class App(
         }
     }
 
+    /**
+     * bind banner video
+     */
+    fun bindTopBannerVideo() {
+        bannerVideo?.let { 
+            val hdlr: (Event)->Unit = {
+                handleBannerEnded(it)
+            }
+            it.addEventListener("ended", hdlr)
+            bannerVideoEndedHdlr = hdlr 
+        }
+    }
+    /**
+     * unbind banner video
+     */
+    fun unbindTopBannerVideo() {
+        bannerVideoEndedHdlr?.let {
+            val hdlr = it
+            bannerVideo?.let {
+                it.removeEventListener("ended", hdlr)
+            }
+        }
+        bannerVideoEndedHdlr = null
+    }
+
+    /**
+     * handle banner video ended event
+     */
+    fun handleBannerEnded(event: Event) {
+        stopVideoLastFrame(event.currentTarget as HTMLVideoElement)
+    }
+
+
+    /**
+     * html media element
+     */
+    fun stopVideoLastFrame(element: HTMLVideoElement) {
+        element.dataset["lastFrame"]?.let {
+            element.poster = it
+        }
+    }
 
     /**
      * run this object
@@ -83,6 +145,7 @@ class App(
             val once: Boolean = true
         })
     }
+
 }
 
 // vi: se ts=4 sw=4 et:
