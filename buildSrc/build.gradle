@@ -1,0 +1,14 @@
+
+plugins {
+    id 'groovy'
+    id 'groovy-gradle-plugin'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+}
+
+// vi: se ts=4 sw=4 et:

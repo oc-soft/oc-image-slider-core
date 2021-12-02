@@ -16,227 +16,64 @@ class HtmlWebpack {
    * setup webpack configuration
    */
   setupWebpack(config) {
-
     this.setupHtmlPlugin(config)
     this.setupCdnPlugin(config)
+  }
+
+
+  /**
+   *  create style exclude chunks 
+   */
+  createStyleExcludeChunks(confg, htmlEntry) {
+    const styleEntries = GradleBuild.config.html[htmlEntry].style
+    
+    const allEntries = GradleBuild.config.style
+
+    const result = []
+    Object.keys(allEntries).forEach(key => {
+      if (styleEntries.indexOf(key) < 0) {
+        result.push(key)
+      }
+    })
+    return result
+  }
+
+  /**
+   * create exclude chunks for jsEntry
+   */
+  createExcludeCunks(config, htmlEntry) {
+    
+    const result = []
+    const jsEntries = GradleBuild.config.html[htmlEntry].application
+    const entries = config.entry
+    Object.keys(entries).forEach(key => {
+      if (jsEntries.indexOf(key) < 0) {
+          result.push(key)
+      }
+    })
+    result.push(...this.createStyleExcludeChunks(config, htmlEntry)) 
+    return result
   }
   /**
    * set html-webpack-plugin up
    */
   setupHtmlPlugin(config) {
-    this.setupHtmlPluginMain(config)
-    this.setupHtmlPluginSiteMgr(config)
-    this.setupHtmlPluginPostsMgr(config)
-    this.setupHtmlPluginPost(config)
-    this.setupHtmlPluginMessageMgr(config)
-    this.setupHtmlPluginWorkUsMgr(config)
-  }
-
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginMain(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'main',
-      minify: false
+    const HtmlWebpackPlugin = require('html-webpack-plugin')
+    const htmlConfig = GradleBuild.config.html
+    const self = this
+    for (const key in htmlConfig) {
+      const config0 = {
+        inject: false,
+        cdnModule: key,
+        minify: false,
+        filename: htmlConfig[key].outputName,
+        template: htmlConfig[key].source,
+        excludeChunks: self.createExcludeCunks(config, key)
+      }
+      config.plugins.push(new HtmlWebpackPlugin(config0))
     }
-    htmlPluginConfig.filename = GradleBuild.config.mainHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.mainSrcTemplate
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.js/,
-      /siteMgr.*\.js/,
-      /siteMgrCss.*\.(js|css)/,
-      /postsMgr.*\.js/,
-      /postsMgrCss.*\.(js|css)/,
-      /post.*\.js/,
-      /postCss.*\.(js|css)/,
-      /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/,
-      /workUsMgr.*\.js/,
-      /workUsMgrCss.*\.(js|css)/
-    ]
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
   }
   
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginSiteMgr(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-   
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'siteMgr',
-      minify: false
-    }
-    htmlPluginConfig.filename = GradleBuild.config.siteMgrHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.siteMgrSrcTemplate
-
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.(js|css)/,
-      /main.*\.js/,
-      /siteMgrCss.*\.js/,
-      /postsMgr.*\.js/,
-      /postsMgrCss.*\.(js|css)/,
-      /post.*\.js/,
-      /postCss.*\.(js|css)/,
-      /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/,
-      /workUsMgr.*\.js/,
-      /workUsMgrCss.*\.(js|css)/
-    ]
-
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
-
-  }
-
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginPostsMgr(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-   
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'postsMgr',
-      minify: false
-    }
-    htmlPluginConfig.filename = GradleBuild.config.postsMgrHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.postsMgrSrcTemplate
-
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.(js|css)/,
-      /main.*\.js/,
-      /siteMgr.*\.js/,
-      /siteMgrCss.*\.(js|css)/,
-      /postsMgrCss.*\.js/,
-      /post-.*\.js/,
-      /postCss.*\.(js|css)/,
-      /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/,
-      /workUsMgr.*\.js/,
-      /workUsMgrCss.*\.(js|css)/
-    ]
-
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
-  }
-
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginPost(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-   
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'post',
-      minify: false
-    }
-    htmlPluginConfig.filename = GradleBuild.config.postHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.postSrcTemplate
-
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.(js|css)/,
-      /main.*\.js/,
-      /siteMgr.*\.js/,
-      /siteMgrCss.*\.(js|css)/,
-      /postsMgr.*\.js/,
-      /postsMgrCss.*\.(js|css)/,
-      /postCss.*\.js/,
-      /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/,
-      /workUsMgr.*\.js/,
-      /workUsMgrCss.*\.(js|css)/
-    ]
-
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
-  }
-
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginMessageMgr(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-   
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'messageMgr',
-      minify: false
-    }
-    htmlPluginConfig.filename = GradleBuild.config.messageMgrHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.messageMgrSrcTemplate
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.(js|css)/,
-      /main.*\.js/,
-      /siteMgr.*\.js/,
-      /siteMgrCss.*\.(js|css)/,
-      /postsMgr.*\.js/,
-      /postsMgrCss.*\.(js|css)/,
-      /post.*\.js/,
-      /postCss.*\.(js|css)/,
-      /workUsMgr.*\.js/,
-      /workUsMgrCss.*\.(js|css)/,
-      /messageMgrCss.*\.js/
-    ]
-
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
-  }
-
-  /**
-   * set html-webpack-plugin up
-   */
-  setupHtmlPluginWorkUsMgr(config) {
-    const HtmlWebpackPlugin = require('html-webpack-plugin')
-   
-    const htmlPluginConfig = {
-      inject: false,
-      cdnModule: 'workUsMgr',
-      minify: false
-    }
-    htmlPluginConfig.filename = GradleBuild.config.workUsMgrHtmlOutput
-    htmlPluginConfig.template = GradleBuild.config.workUsMgrSrcTemplate
-    htmlPluginConfig.excludeAssets = [
-      /mainCss.*\.(js|css)/,
-      /main.*\.js/,
-      /siteMgr.*\.js/,
-      /siteMgrCss.*\.(js|css)/,
-      /postsMgr.*\.js/,
-      /postsMgrCss.*\.(js|css)/,
-      /post.*\.js/,
-      /postCss.*\.(js|css)/,
-      /messageMgr.*\.js/,
-      /messageMgrCss.*\.(js|css)/,
-      /workUsMgrCss.*\.js/
-    ]
-
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackPlugin(htmlPluginConfig))
-    this.setupHtmlExcludeAssets(config)
-  }
-
-
-
-
-  setupHtmlExcludeAssets(config) {
-    const HtmlWebpackSkipAssetsPlugin = require(
-      'html-webpack-skip-assets-plugin').HtmlWebpackSkipAssetsPlugin
-    config.plugins = config.plugins || []
-    config.plugins.push(new HtmlWebpackSkipAssetsPlugin())
-  }
-
-
   /**
    * set webpack-cdn-plugin up.
    */
@@ -257,10 +94,12 @@ class HtmlWebpack {
     }
     const basicModuleSetting = [
       {
-        name: 'kotlin'
+        name: 'kotlin',
+        path: 'kotlin.js'
       },
       {
-        name: 'kotlinx-coroutines-core'
+        name: 'kotlinx-coroutines-core',
+        path: 'kotlin-coroutines-core.js'
       },
       {
         name: 'jquery'
@@ -278,15 +117,14 @@ class HtmlWebpack {
       },
       fontawesomeFree
     ]
-    const cdnPluginConfig = {
-      modules: {
-        main: basicModuleSetting,
-        siteMgr: basicModuleSetting,
-        postsMgr: basicModuleSetting,
-        post: basicModuleSetting,
-        messageMgr: basicModuleSetting,
-        workUsMgr: basicModuleSetting,
-      }
+
+    const htmlConfig = GradleBuild.config.html
+    const modules = {}
+    for (const key in htmlConfig) {  
+      modules[key] = basicModuleSetting
+    }
+    const cdnPluginConfig = { 
+      modules
     }
     cdnPluginConfig.pathToNodeModules = GradleBuild.config.jsRootDir
     config.plugins = config.plugins || []

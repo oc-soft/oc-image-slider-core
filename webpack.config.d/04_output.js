@@ -4,15 +4,6 @@
  */
 class Output {
 
-
-  /**
-   * get css output 
-   */
-  static get cssOutput() {
-    
-  }
-
-
   /**
    * constructor
    */
@@ -32,7 +23,7 @@ class Output {
         } else {
           result = chunkData.chunk.name
         }
-        const programDir = GradleBuild.config.programDir
+        const programDir = GradleBuild.config.jsDir || '.'
         result = `${programDir}/${result}-[contenthash].js`
         return result
       }

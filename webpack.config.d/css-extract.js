@@ -7,12 +7,16 @@ class CssExtract {
 
     config.plugins = config.plugins || []
     
-    const cssDir = GradleBuild.config.cssDir
+     
+    const cssOutput = GradleBuild.config.cssOutput
+    const cssDir = GradleBuild.config.cssDir || '.'
     config.plugins.push(new MiniCssExtractPlugin({
-      filename: `${cssDir}/[name].css`
+      filename: (pathData) => {
+        const outputName = cssOutput[pathData.chunk.name] 
+          || `${pathData.name}.css`
+        return `${cssDir}/${outputName}`
+      }
     }))
-
-
   }
 }
 
