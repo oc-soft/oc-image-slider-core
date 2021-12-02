@@ -21,22 +21,6 @@ class HtmlWebpack {
   }
 
 
-  /**
-   *  create style exclude chunks 
-   */
-  createStyleExcludeChunks(confg, htmlEntry) {
-    const styleEntries = GradleBuild.config.html[htmlEntry].style
-    
-    const allEntries = GradleBuild.config.style
-
-    const result = []
-    Object.keys(allEntries).forEach(key => {
-      if (styleEntries.indexOf(key) < 0) {
-        result.push(key)
-      }
-    })
-    return result
-  }
 
   /**
    * create exclude chunks for jsEntry
@@ -44,14 +28,15 @@ class HtmlWebpack {
   createExcludeCunks(config, htmlEntry) {
     
     const result = []
-    const jsEntries = GradleBuild.config.html[htmlEntry].application
+    const htmlEntries = GradleBuild.config.html[htmlEntry].application
+    htmlEntries.push(...GradleBuild.config.html[htmlEntry].style)
+
     const entries = config.entry
     Object.keys(entries).forEach(key => {
-      if (jsEntries.indexOf(key) < 0) {
+      if (htmlEntries.indexOf(key) < 0) {
           result.push(key)
       }
     })
-    result.push(...this.createStyleExcludeChunks(config, htmlEntry)) 
     return result
   }
   /**

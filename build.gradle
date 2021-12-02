@@ -68,7 +68,7 @@ ext.html = [
             'main'
         ],
         style: [
-            'main-scss'
+            'nbs-scss'
         ],
         source: file('src/site/template/asset-tags-0.php'),
         outputName: 'index-tags-0.php' 
