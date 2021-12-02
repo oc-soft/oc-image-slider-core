@@ -102,21 +102,6 @@ ext.browserClass =
 ext.dceDir = browserClass.DCE_DIR
 ext.dceDevDir = browserClass.DCE_DEV_DIR
 
-
-/**
- * get application names without default entry
- */
-def getAppNamesWithoutDefault() {
-    def result = [:]
-    appNames.each {
-        key, value ->
-        if (key != 'main') {
-            result.put(key, value)
-        }
-    }
-    return result
-}
-
 ext.jarApp = [
     output: "${buildDir}/jar/${rootProject.name}",
     exeSh: "gen.sh"
@@ -158,6 +143,21 @@ ext.jpAddrSetting = [
         ]
     ]
 ]
+
+/**
+ * get application names without default entry
+ */
+def getAppNamesWithoutDefault() {
+    def result = [:]
+    appNames.each {
+        key, value ->
+        if (key != 'main') {
+            result.put(key, value)
+        }
+    }
+    return result
+}
+
 
 def createCompilation(
     def compilations,
