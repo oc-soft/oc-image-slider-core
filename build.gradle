@@ -70,7 +70,7 @@ ext.html = [
         style: [
             'nbs-scss'
         ],
-        source: file('src/site/template/asset-tags-0.php'),
+        source: file('src/site/frame/asset-tags-0.php'),
         outputName: 'index-tags-0.php' 
     ],
     'post': [
@@ -80,7 +80,7 @@ ext.html = [
         style: [
             'post-scss'
         ],
-        source: file('src/site/template/asset-tags-0.php'),
+        source: file('src/site/frame/asset-tags-0.php'),
         outputName: 'post-tags-0.php' 
     ],
     'message': [
@@ -90,7 +90,7 @@ ext.html = [
         style: [
             'message-mgr-scss'
         ],
-        source: file('src/site/template/asset-tags-0.php'),
+        source: file('src/site/frame/asset-tags-0.php'),
         outputName: 'message-tags-0.php'
     ]
 ]
@@ -693,11 +693,11 @@ task copyWpToWebSite {
 
     doLast {
         def sgenSetting = readSgenSetting()
-        def outputRoot = sgenSetting['output-root']
+        def outputRoot = "${buildDir}/web-site"
 
         copy {
             from "wordpress"
-            into "${outputRoot}/wordpress"    
+            into outputRoot 
             include "**"
         }
     }
