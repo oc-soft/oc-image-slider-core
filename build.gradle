@@ -18,6 +18,10 @@ String.metaClass.snakeToCamel = {
 }
 
 ext.styles = [
+    'style-scss': [
+        input: file('src/site/style/style.scss'),
+        outputName: 'style.css'
+    ],
     'nbs-scss': [
         input: file('src/site/style/main.scss'),
         outputName: 'nbs.css'
@@ -68,7 +72,8 @@ ext.html = [
             'main'
         ],
         style: [
-            'nbs-scss'
+            'nbs-scss',
+            'style-scss'
         ],
         source: file('src/site/frame/asset-tags-0.php'),
         outputName: 'index-tags-0.php' 
@@ -78,7 +83,7 @@ ext.html = [
             'post'
         ],
         style: [
-            'post-scss'
+            'post-scss',
         ],
         source: file('src/site/frame/asset-tags-0.php'),
         outputName: 'post-tags-0.php' 
@@ -306,8 +311,6 @@ def createCssOutputMap() {
     }
 }
 
-
-
 task webpackGradleBuild {
     doLast {
         def buildSetting = [:] 
@@ -414,8 +417,7 @@ buildSite.dependsOn createAppScript
 
 
 def setupWebpack(
-    def webpackTask,
-    def mode) {
+    def webpackTask) {
 
     styles.each {
         key, value ->
@@ -444,8 +446,8 @@ def setupWebpack(
     webpackTask.dependsOn webpackGradleBuild
 }
 
-setupWebpack(jsBrowserProductionWebpack, 'production')
-setupWebpack(jsBrowserDevelopmentWebpack, 'development')
+setupWebpack(jsBrowserProductionWebpack)
+setupWebpack(jsBrowserDevelopmentWebpack)
 
 
 /**
@@ -497,6 +499,11 @@ task jsResourcesForSite {
             from "${distDir}/${webpackSetting.cssDir}"
             include '*.css'
             into "${outputRoot}/${webpackSetting.cssDir}"
+        }
+        copy {
+            from "${distDir}/${webpackSetting.cssDir}"
+            include 'style.css'
+            into outputRoot
         }
 
     }

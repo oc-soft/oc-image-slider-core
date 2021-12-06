@@ -1,5 +1,5 @@
 {
-  "output-root" : "build/web-site",
+  "output-root" : "build/web-site/wp-content/themes/nbs",
   "root-resource-mapping" : [ 
     {
       "root-dir": "src/site",
