@@ -58,55 +58,25 @@ class HtmlWebpack {
       config.plugins.push(new HtmlWebpackPlugin(config0))
     }
   }
-  
   /**
    * set webpack-cdn-plugin up.
    */
   setupCdnPlugin(config) {
     const WebpackCdnPlugin = require('webpack-cdn-plugin');
-    const fontawesomeFree = {
-      name: '@fortawesome/fontawesome-free',
-      cdn: 'font-awesome',
-      cssOnly: true,
-      paths: [
-      ],
-      prodUrl: '//cdnjs.cloudflare.com/ajax/libs/:name/:version/:path',
-      styles: [
-        'css/fontawesome.css',
-        'css/solid.css',
-        'css/brands.css'
-      ]
-    }
-    const basicModuleSetting = [
-      {
-        name: 'kotlin',
-        path: 'kotlin.js'
-      },
-      {
-        name: 'kotlinx-coroutines-core',
-        path: 'kotlin-coroutines-core.js'
-      },
-      {
-        name: 'jquery'
-      },
-      {
-        name: '@popperjs/core',
-        prodUrl: '//unpkg.com/:name@:version/dist/umd/popper.js'
-
-      },
-      {
-        name: 'bootstrap',
-        styles: [
-          'dist/css/bootstrap.min.css'
-        ]
-      },
-      fontawesomeFree
-    ]
-
     const htmlConfig = GradleBuild.config.html
+
+    const cdnSetting = []
+    Reflect.ownKeys(GradleBuild.config.htmlCdn).forEach(key => {
+      const entry = GradleBuild.config.htmlCdn[key]
+      const cdnEntry = { name: key }
+      if ('cdn' in entry) {
+        Object.assign(cdnEntry, entry.cdn)  
+      }
+      cdnSetting.push(cdnEntry)
+    })
     const modules = {}
     for (const key in htmlConfig) {  
-      modules[key] = basicModuleSetting
+      modules[key] = cdnSetting
     }
     const cdnPluginConfig = { 
       modules
@@ -115,7 +85,6 @@ class HtmlWebpack {
     config.plugins = config.plugins || []
     config.plugins.push(new WebpackCdnPlugin(cdnPluginConfig))
   }
-
 }
 
 (function(config) {

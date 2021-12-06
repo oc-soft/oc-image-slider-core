@@ -1,27 +1,9 @@
 
 class Module {
   setupConfig(config) {
-    this.setupExternals(config)
     this.setupRules(config)
   }
 
-  setupExternals(config) {
-    config.externals = config.externals || [] 
-    
-    config.externals.push({
-      '@popperjs/core': {
-          commonjs: '@popperjs/core',
-          commonjs2: '@popperjs/core',
-          root: 'Popper'
-      },
-      jquery: {
-        commonjs: 'jquery',
-        commonjs2:'jquery',
-        root: 'jQuery'
-      },
-      kotlin: 'kotlin'
-    })
-  }
  
   setupRules(config) {
     const MiniCssExtractPlugin = require('mini-css-extract-plugin')

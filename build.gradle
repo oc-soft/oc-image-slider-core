@@ -95,6 +95,60 @@ ext.html = [
     ]
 ]
 
+ext.htmlCdn = [
+    kotlin: [
+        cdn: [
+            path: 'kotlin.js'
+        ]
+    ], 
+    'kotlinx-coroutines-core': [
+        cdn: [
+            path: 'kotlin-coroutines-core.js'
+        ]
+    ],
+    '@popperjs/core': [
+        cdn: [ 
+            prodUrl: '//unpkg.com/:name@:version'
+        ],
+        external: [
+            commonjs: 'popper',
+            commonjs2: 'popper',
+            root: 'Popper'
+        ]
+    ],
+    jquery: [
+        external: [
+            commonjs: 'jquery',
+            commonjs2:'jquery',
+            root: 'jQuery'
+        ]
+    ],
+    bootstrap: [
+        cdn: [
+            styles: [
+                'dist/css/bootstrap.min.css'
+            ]
+        ]
+    ],
+    '@fortawesome/fontawesome-free': [
+        cdn: [
+            cdn: 'font-awesome',
+            cssOnly: true,
+            paths: [
+            ],
+            prodUrl: '//cdnjs.cloudflare.com/ajax/libs/:name/:version/:path',
+            styles: [
+                'css/fontawesome.css',
+                'css/solid.css',
+                'css/brands.css'
+            ]
+        ],
+        external: [
+            root: 'FontAwesome'
+        ]
+    ]
+]
+
 
 ext.browserClass = 
     org.jetbrains.kotlin.gradle.targets.js.subtargets.KotlinBrowserJs 
@@ -324,6 +378,7 @@ task webpackGradleBuild {
         buildSetting['jsRootDir'] = 
             rootPackageJson.rootPackageJson.parentFile.toString()
         buildSetting['html'] = html
+        buildSetting['htmlCdn'] = htmlCdn
         buildSetting['cssOutput'] = createCssOutputMap()   
         def tmp = new groovy.text.StreamingTemplateEngine()
         def gradleBuildSrc = file("tools/${webpackSetting.gradleBuildJs}")
