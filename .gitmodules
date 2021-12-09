@@ -1,3 +1,6 @@
 [submodule "src/site"]
 	path = src/site
 	url = ../nihon-bisoh.git
+[submodule "webpack-cdn-plugin"]
+	path = webpack-cdn-plugin
+	url = https://github.com/toshiyuki-rs/webpack-cdn-plugin.git

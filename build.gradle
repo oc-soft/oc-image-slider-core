@@ -540,6 +540,11 @@ task jsResourcesForSite {
             include '**/*.php'
             into "${outputRoot}/lib"
         }
+        copy {
+            from distDir
+            include 'bundle-report.json'
+            into outputRoot
+        }
 
         delete "${outputRoot}/${webpackSetting.jsProgramDir}",
             "${outputRoot}/${webpackSetting.cssDir}"
