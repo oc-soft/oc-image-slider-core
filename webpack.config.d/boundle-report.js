@@ -19,6 +19,7 @@ class BundleReport {
     this.option = option
   }
 
+
   /**
    * apply
    */
@@ -28,8 +29,19 @@ class BundleReport {
       (stats) => {
         const bundles = {}
 
-        bundles.externals = this.getExternalModules(
-          stats.compilation).map(elem => elem.request)
+        bundles.externals = {}
+        this.getExternalModules(
+          stats.compilation).forEach(elem => {
+            const ext = this.option.externals
+            const value = { }
+            if (ext) {
+              if (elem.request in ext) {
+                Object.assign(value, ext[elem.request])
+              }
+            }
+            bundles.externals[elem.request] = value
+          })
+
         bundles.emittedAssets = []
         for (const elem of stats.compilation.emittedAssets) {
           bundles.emittedAssets.push(elem)
@@ -70,7 +82,8 @@ class BundleReport {
 
 
 ((config) => {
-  const bundleReport = new BundleReport({}) 
+  
+  const bundleReport = new BundleReport(GradleBuild.config['bundle-report'])
   bundleReport.setup(config)
 })(config)
 

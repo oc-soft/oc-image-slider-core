@@ -27,6 +27,7 @@ class Externals {
       externalObj = { }
       config.externals = [ config.externals, externalObj ]
     }
+    Object.assign(externalObj, GradleBuild.config.externals)
 
     Reflect.ownKeys(GradleBuild.config.htmlCdn).forEach(key => {
       const entry = GradleBuild.config.htmlCdn[key]

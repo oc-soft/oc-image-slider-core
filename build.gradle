@@ -66,93 +66,9 @@ ext.appNames = [
     ]
 ]
 
-ext.html = [
-    'index': [
-        application: [
-            'main'
-        ],
-        style: [
-            'nbs-scss',
-            'style-scss'
-        ],
-        source: file('src/site/frame/asset-tags-0.php'),
-        outputName: 'index-tags-0.php' 
-    ],
-    'post': [
-        application: [
-            'post'
-        ],
-        style: [
-            'post-scss',
-        ],
-        source: file('src/site/frame/asset-tags-0.php'),
-        outputName: 'post-tags-0.php' 
-    ],
-    'message': [
-        application: [
-            'message-mgr'
-        ],
-        style: [
-            'message-mgr-scss'
-        ],
-        source: file('src/site/frame/asset-tags-0.php'),
-        outputName: 'message-tags-0.php'
-    ]
-]
+ext.html = [:]
 
-ext.htmlCdn = [
-    kotlin: [
-        cdn: [
-            path: 'kotlin.js'
-        ]
-    ], 
-    'kotlinx-coroutines-core': [
-        cdn: [
-            path: 'kotlin-coroutines-core.js'
-        ]
-    ],
-    '@popperjs/core': [
-        cdn: [ 
-            prodUrl: '//unpkg.com/:name@:version'
-        ],
-        external: [
-            commonjs: 'popper',
-            commonjs2: 'popper',
-            root: 'Popper'
-        ]
-    ],
-    jquery: [
-        external: [
-            commonjs: 'jquery',
-            commonjs2:'jquery',
-            root: 'jQuery'
-        ]
-    ],
-    bootstrap: [
-        cdn: [
-            styles: [
-                'dist/css/bootstrap.min.css'
-            ]
-        ]
-    ],
-    '@fortawesome/fontawesome-free': [
-        cdn: [
-            cdn: 'font-awesome',
-            cssOnly: true,
-            paths: [
-            ],
-            prodUrl: '//cdnjs.cloudflare.com/ajax/libs/:name/:version/:path',
-            styles: [
-                'css/fontawesome.css',
-                'css/solid.css',
-                'css/brands.css'
-            ]
-        ],
-        external: [
-            root: 'FontAwesome'
-        ]
-    ]
-]
+ext.htmlCdn = [:]
 
 
 ext.browserClass = 
@@ -176,7 +92,17 @@ ext.webpackSetting = [
     gradleBuildJs: 'gradle-build.js',
     libraryTarget: 'umd',
     jsProgramDir: 'js',
-    cssDir: 'css'
+    cssDir: 'css',
+    externals: [
+        kotlin: 'kotlin'
+    ],
+    bundleReport: [
+        externals: [
+            kotlin: [
+               url: 'https://unpkg.com/kolin@1.6.0'
+            ]
+        ]
+    ]
 ]
 
 ext.webpackSetting.gradleBuildPath =
@@ -377,9 +303,11 @@ task webpackGradleBuild {
         buildSetting['cssOutput'] = createCssOutputMap()
         buildSetting['jsDir'] = webpackSetting.jsProgramDir
         buildSetting['cssDir'] = webpackSetting.cssDir
+        buildSetting['externals'] = webpackSetting.externals
         buildSetting['mainProgramName'] = appNames['main']['js-name']
         buildSetting['jsRootDir'] = 
             rootPackageJson.rootPackageJson.parentFile.toString()
+        buildSetting['bundle-report'] = webpackSetting.bundleReport
         buildSetting['html'] = html
         buildSetting['htmlCdn'] = htmlCdn
         buildSetting['cssOutput'] = createCssOutputMap()   
