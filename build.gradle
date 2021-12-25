@@ -99,7 +99,7 @@ ext.webpackSetting = [
     bundleReport: [
         externals: [
             kotlin: [
-               url: 'https://unpkg.com/kolin@1.6.0'
+               url: 'https://unpkg.com/kotlin@1.6.0'
             ]
         ]
     ]
@@ -411,6 +411,12 @@ def setupWebpack(
         webpackTask.inputs.files value.source
     }
 
+    fileTree("${projectDir}/src/site/style/") {
+        include '**/*.scss'
+    }.each {
+        webpackTask.inputs.files it
+    }
+
     files("${projectDir}/webpack.config.d/*.js").each {
         if (it != webpackSetting.gradleBuildPath) {
             webpackTask.inputs.files it
@@ -427,10 +433,12 @@ def setupWebpack(
         webpackTask.outputs.files it
     }
     webpackTask.dependsOn webpackGradleBuild
+
 }
 
 setupWebpack(jsBrowserProductionWebpack)
 setupWebpack(jsBrowserDevelopmentWebpack)
+
 
 
 /**

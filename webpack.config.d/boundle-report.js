@@ -42,6 +42,12 @@ class BundleReport {
             bundles.externals[elem.request] = value
           })
 
+
+
+        bundles.entryAssets = {}
+        stats.compilation.entrypoints.forEach((value, key) => {
+          bundles.entryAssets[key] = value.getFiles()
+        })
         bundles.emittedAssets = []
         for (const elem of stats.compilation.emittedAssets) {
           bundles.emittedAssets.push(elem)
