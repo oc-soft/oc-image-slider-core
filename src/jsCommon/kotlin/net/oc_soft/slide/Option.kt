@@ -27,11 +27,12 @@ class Option {
             return optionMap["type"]?.let {
                 if (it is String) {
                     when (it) {
-                        "square" -> {
-                            createSquareFragment(containerElement,
-                                generateElement,
-                                optionMap)
-                        }
+                        "square" -> createSquareFragment(containerElement,
+                            generateElement,
+                            optionMap)
+                        "rect" -> createRectFragment(containerElement,
+                            generateElement,
+                            optionMap)
                         else -> null
                     }
                 } else {
@@ -93,6 +94,70 @@ class Option {
                 null
             } 
         }
+
+        /**
+         * create rect fragments
+         */
+        fun createRectFragment(
+            containerElement: HTMLElement,
+            generateElement: ()->HTMLElement?,
+            optionMap: Map<String, Any>): Animation? {
+
+            val rowColumns = optionMap["division"]?.let {
+                 when(it) {
+                    is String -> it.toIntOrNull()?.let {
+                        intArrayOf(it, it) 
+                    }
+                    is Number -> intArrayOf(it.toInt(), it.toInt())
+                    is Array<*> -> {
+                        val numbers = it.filterIsInstance<Number>()  
+                        IntArray(numbers.size) {
+                            numbers[it].toInt()
+                        }
+                    }
+                    else -> null
+                }
+            }
+            val steps = optionMap["steps"]?.let {
+                when (it) {
+                    is String -> it.toIntOrNull()
+                    is Number -> it.toInt()
+                    else -> null
+                }
+            }
+            val anchor = optionMap["anchor"]?.let {
+                when (it) {
+                    is String -> it.toIntOrNull()?.let { intArrayOf(it) }
+                    is Number -> intArrayOf(it.toInt())
+                    is Array<*> -> {
+                        val numbers = it.filterIsInstance<Number>()  
+                        IntArray(numbers.size) {
+                            numbers[it].toInt()
+                        }
+                    }
+                    else -> null
+                }
+            }
+            val animationOption = getAnimationOption(optionMap)
+            return if (rowColumns != null
+                && rowColumns.size > 1
+                && steps != null
+                && anchor != null
+                && animationOption != null) {
+            
+                Rect.createFragments(
+                    containerElement,
+                    generateElement,
+                    anchor,
+                    steps,
+                    rowColumns[0],
+                    rowColumns[1],
+                    animationOption)
+            } else {
+                null
+            } 
+        }
+
 
         /**
          * extract animation option from option map

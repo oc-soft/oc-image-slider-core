@@ -4,3 +4,21 @@
 [submodule "webpack-cdn-plugin"]
 	path = webpack-cdn-plugin
 	url = https://github.com/toshiyuki-rs/webpack-cdn-plugin.git
+[submodule "wp-color-picker-alpha"]
+	path = wp-color-picker-alpha-js
+	url = https://github.com/oc-soft/wp-color-picker-alpha-js.git
+[submodule "Iris"]
+	path = Iris
+	url = https://github.com/Automattic/Iris.git
+[submodule "Color.js"]
+	path = Color.js
+	url = https://github.com/Automattic/Color.js.git
+[submodule "wp-color-ext"]
+	path = wp-color-ext
+	url = https://github.com/oc-soft/wp-color-ext.git
+[submodule "wp-iris-alpha-js"]
+	path = wp-iris-alpha-js
+	url = https://github.com/oc-soft/wp-iris-alpha-js.git
+[submodule "oc-color-picker-alpha"]
+	path = oc-color-picker-alpha
+	url = https://github.com/oc-soft/oc-color-picker-alpha.git

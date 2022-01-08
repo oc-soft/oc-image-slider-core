@@ -22,6 +22,10 @@ ext.styles = [
         input: file('src/site/style/style.scss'),
         outputName: 'style.css'
     ],
+    'nbs-scss-root': [
+        input: file('src/site/style/main-root.scss'),
+        outputName: 'nbs-root.css'
+    ],
     'nbs-scss': [
         input: file('src/site/style/main.scss'),
         outputName: 'nbs.css'
@@ -383,8 +387,56 @@ task createAppScript {
     }
 }
 
-
 createAppScript.dependsOn copyDependsJar
+
+
+/**
+ * build wordpress extenseion
+ */
+task buildWpExtensionJs {
+
+    def execParams = [
+        [
+            dir: 'wp-color-ext',
+            args: [
+                'run',
+                'build'
+            ] 
+        ],
+        [
+            dir: 'wp-iris-alpha-js',
+            args: [
+                'run',
+                'build'
+            ]
+        ],
+        [
+            dir: 'wp-color-picker-alpha-js',
+            args: [
+                'run',
+                'build' 
+            ]
+        ],
+        [
+            dir: 'oc-color-picker-alpha',
+            args: [
+                'run',
+                'build'
+            ]
+        ]
+    ]
+    doLast {
+        execParams.each {
+            def execWorkingDir = it.dir
+            def execArgs = it.args
+            exec {
+                executable = 'npm'
+                workingDir = execWorkingDir
+                args execArgs
+            }
+        }
+    }
+}
 
 
 task buildSite {
@@ -394,8 +446,82 @@ task buildSite {
             executable = new File("${jarApp.output}/${jarApp.exeSh}")
         }
     }
+    /**
+     * copy wordpress color extention into wp theme directory
+     */
+    doLast  {
+        def outputDir = readSgenSetting()['output-root']
+        outputDir = "${outputDir}/js"
+
+        [
+            "${projectDir}/wp-color-picker-alpha-js/dist/",
+        ].each {
+            def srcDir = it 
+            copy {
+                from srcDir
+                into outputDir
+                include "**/*.js"
+            }
+        }
+    }
+    /**
+     * copy color picker alpha extention into wp theme directory
+     */
+    doLast  {
+        def outputDir = readSgenSetting()['output-root']
+        outputDir = "${outputDir}/js"
+
+        [
+            "${projectDir}/wp-color-ext/dist/",
+        ].each {
+            def srcDir = it 
+            copy {
+                from srcDir
+                into outputDir
+                include "**/*.js"
+            }
+        }
+    }
+    /**
+     * copy iris color picker alpha into wp theme directory
+     */
+    doLast  {
+        def outputDir = readSgenSetting()['output-root']
+        outputDir = "${outputDir}/js"
+
+        [
+            "${projectDir}/wp-iris-alpha-js/dist/",
+        ].each {
+            def srcDir = it 
+            copy {
+                from srcDir
+                into outputDir
+                include "**/*.js"
+            }
+        }
+    }
+    /**
+     * copy wordpress exntension for theme
+     */
+    doLast {
+        def outputRootDir = readSgenSetting()['output-root']
+        def outputDir = "${outputRootDir}/js"
+
+        copy {
+            from "${projectDir}/oc-color-picker-alpha/dist/js"
+            into outputDir
+            include "**/*.js"
+        }
+        outputDir = "${outputRootDir}/lib"
+        copy {
+            from "${projectDir}/oc-color-picker-alpha/dist/php"
+            into outputDir
+            include "**/*.php"
+        }
+    }
 }
 
+buildSite.dependsOn buildWpExtensionJs
 buildSite.dependsOn createAppScript
 
 
@@ -695,7 +821,6 @@ createJpAddrConvAppScript.dependsOn copyDependsJpAddrConvJar
 task copyWpToWebSite {
 
     doLast {
-        def sgenSetting = readSgenSetting()
         def outputRoot = "${buildDir}/web-site"
 
         copy {
@@ -707,6 +832,7 @@ task copyWpToWebSite {
 }
 
 buildSite.dependsOn copyWpToWebSite
+
 
 
 task generateJpAddrResource {

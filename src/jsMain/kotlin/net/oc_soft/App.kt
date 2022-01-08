@@ -19,14 +19,14 @@ class App(
      * bind this object into html element
      */
     fun bind() {
-        headerImage.bind()        
+        // headerImage.bind()        
     }
 
     /**
      * unbind this object from html elements
      */
     fun unbind() {
-        headerImage.unbind()
+        // headerImage.unbind()
     }
 
     fun run() {

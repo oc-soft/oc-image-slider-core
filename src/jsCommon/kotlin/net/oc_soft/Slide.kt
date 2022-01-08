@@ -1,6 +1,7 @@
 package net.oc_soft
 import kotlin.collections.MutableMap
 import kotlin.collections.HashMap
+import kotlin.collections.MutableList
 import kotlin.collections.ArrayList
 import kotlin.collections.Set
 import kotlin.collections.HashSet
@@ -32,6 +33,10 @@ import net.oc_soft.slide.Animation
  */
 class Slide(
     /**
+     * back ground element loader
+     */
+    val elementBackground: ElementBackground = ElementBackground(),
+    /**
      * query for image container
      */
     val containerQuery: String = ".header-image.container",
@@ -52,7 +57,8 @@ class Slide(
     /** 
      * slide setting
      */
-    val setting: MutableMap<String, Any> = HashMap<String, Any>()
+    val setting: MutableList<MutableMap<String, Any>> = 
+        ArrayList<MutableMap<String, Any>>()
 
     /**
      * header root image container
@@ -68,9 +74,11 @@ class Slide(
      */
     fun bind() {
 
-        startToSyncSetting().then({
+        Promise.all(
+            arrayOf(startToSyncSetting(),
+            startToSetupElementBackground())).then {
             startToUpdateImages()
-        })
+        }
     }
 
     /**
@@ -95,6 +103,22 @@ class Slide(
         })
     }
 
+
+    /**
+     * start load to setup element background loader
+     */
+    fun startToSetupElementBackground(): Promise<Unit> {
+        val url = Site.requestUrl
+        val searchParams = url.searchParams
+        searchParams.append("action", "get-image-layout") 
+        return window.fetch(url).then({
+            it.json()
+        }).then({
+            elementBackground.loadSetting(it as Json)
+        })
+    }
+
+    
     /**
      * start to create images
      */    
@@ -116,12 +140,30 @@ class Slide(
      */
     fun updateSetting(params: Json) {
 
-        val keys = js("Object.keys(params)")
+        val params0 = if (params is Array<*>) {
+            params as Array<Json>
+        } else {
+            arrayOf(params) 
+        }
 
-        setting.clear()
-        for (i in 0 until (keys.length as Int)) {
-            val key = keys[i] as String
-            setting[key] = params[key] as Any
+        params0.forEachIndexed {
+            idx, elem ->
+            val settingElem = if (idx >= setting.size) {
+                setting.add(HashMap<String, Any>())
+                setting[idx]
+            } else {
+                setting[idx].clear()
+                setting[idx]
+            }
+            val keys = js("Object.keys(elem)")
+
+            for (i in 0 until (keys.length as Int)) {
+                val key = keys[i] as String
+                settingElem[key] = elem[key] as Any
+            }
+        }
+        while (params0.size > setting.size) {
+            setting.removeAt(setting.lastIndex)
         }
     }
     /**
@@ -175,10 +217,11 @@ class Slide(
         slideElements: Set<Element>) {
         loadImages(imageSources, backImageIndex, imageIndex).then {
             if (it[0] != null) {
+                val imageIndex0 = it[0]!!
                 getImageSourceUrl(imageSources, it[0]!!)?.let {
                     val url = it
                     imageContainer?.let {
-                        setBackgroundImage(it, url)
+                        setBackgroundImage(it, imageIndex0, url)
                         slideElements.forEach { it.remove() }
                     }
                 } 
@@ -216,42 +259,47 @@ class Slide(
         imageIndex: Int,
         animationListener: (
             (Event, Set<Element>)->Unit)?) {
-        imageContainer?.let {
-            val elementContainer = it 
-            getImageSourceUrl(imageSources, imageIndex)?.let {
-                val imageUrl = it 
 
-                val slideFragments = HashSet<Element>()
-                val hdlr: (Event)->Unit = {
-                    event ->
-                    animationListener?.let {
-                        it(event, slideFragments)
-                    }
+        val setting = if (this.setting.size > 0) {
+            this.setting[imageIndex % this.setting.size]
+        } else {
+            null
+        }
+        if (setting != null) { 
+            imageContainer?.let {
+                val elementContainer = it 
+                getImageSourceUrl(imageSources, imageIndex)?.let {
+                    val imageUrl = it 
 
-                    handleAnimationEvent(
-                        event, imageSources, imageIndex, slideFragments)
-                }
-                Option.createFragments(elementContainer, 
-                    { createPlainImageFragment() },
-                    setting)?.let {
-                    it.fragments.forEach {
-                        setBackgroundImage(it.element, imageUrl)
-                        elementContainer.append(it.element)
-                        slideFragments.add(it.element)      
+                    val slideFragments = HashSet<Element>()
+                    val hdlr: (Event)->Unit = {
+                        event ->
+                        animationListener?.let {
+                            it(event, slideFragments)
+                        }
+
+                        handleAnimationEvent(
+                            event, imageSources, imageIndex, slideFragments)
                     }
-                    elementContainer.addEventListener(
-                        "finish", hdlr, object {
-                            @JsName("once")
-                            val once = true
-                        })
-                    it.play()
+                    Option.createFragments(elementContainer, 
+                        { createPlainImageFragment() },
+                        setting)?.let {
+                        it.fragments.forEach {
+                            setBackgroundImage(it.element, imageIndex, imageUrl)
+                            elementContainer.append(it.element)
+                            slideFragments.add(it.element)      
+                        }
+                        elementContainer.addEventListener(
+                            "finish", hdlr, object {
+                                @JsName("once")
+                                val once = true
+                            })
+                        it.play()
+                    }
                 }
             }
         }
     }
-
-
-    
 
     /**
      * handle animation event
@@ -293,12 +341,29 @@ class Slide(
         }
     }
 
+    /**
+     * set image url into element
+     */
+    fun setBackgroundImage(
+        element: HTMLElement, 
+        imageLayoutIndex: Int,
+        url: String) {
+        setBackgroundImage(element, imageLayoutIndex, arrayOf(url))
+    }
+
+
 
     /**
      * set image url into element
      */
-    fun setBackgroundImage(element: HTMLElement, url: String) {
-        element.style.backgroundImage = "url($url)"
+    fun setBackgroundImage(
+        element: HTMLElement, 
+        imageLayoutIndex: Int,
+        url: Array<String>) {
+
+        elementBackground.createBackground(imageLayoutIndex, url)?.let {
+            element.style.backgroundImage = it
+        }
     }
 
 
