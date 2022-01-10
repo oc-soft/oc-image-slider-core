@@ -10,7 +10,10 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.get
 
 class App {
-
+    /**
+     * back ground element loader
+     */
+    val elementBackground: ElementBackground = ElementBackground()
     /**
      * header image container html element query
      */
@@ -37,7 +40,7 @@ class App {
     val headerImage: HeaderImage = HeaderImage(
         ".header-image.container .message",
         ".header-image.container .message-base",
-        ".header-image.container .message-base",
+        ".header-image.container",
         "get-header-image-params") 
 
     /**
@@ -46,42 +49,61 @@ class App {
     val slideImage: Slide = Slide(
         headerImageContainerQuery,
         ".tmpl-header-image",
+        "get-header-images",
         "get-slide-image-params",
         "get-slide-image-layout")
+
+
+    /**
+     * start animation
+     */
+    fun start() {
+        headerImageContainer?.let {
+            val imageContainer = it
+
+            val promises = arrayOf(
+                headerImage.startSyncSetting(),
+                slideImage.startSetting())
+
+            Promise.all(promises).then({
+                val headerImageHdlr: (Event)->Unit = {
+                    if (it.type == "finish") {
+                        unbindHeaderImage()
+                        slideImage.startToUpdateImages()
+                    }
+                }
+                bindHeaderImage(headerImageHdlr)
+                val animationRunner = headerImage.createAnimation(
+                    imageContainer) 
+                animationRunner()
+            })
+        }
+    }
+
 
     /**
      * bind this object into html element
      */
     fun bind() {
-        bindHeaderImage()
-        headerImageContainer?.let {
-            val imageContainer = it
-            headerImage.startSyncSetting().then({
-               headerImage.createAnimation(imageContainer)()
-            })
-        }
-        // slideImage.bind()        
+        slideImage.bind()
     }
 
     /**
      * unbind this object from html elements
      */
     fun unbind() {
-        // slideImage.unbind()
+        slideImage.unbind()
 
-        unbindHeaderImage()
     }
 
     /**
      * bind header image
      */
-    fun bindHeaderImage() {
+    fun bindHeaderImage(eventHdlr: (Event)->Unit) {
         headerImageContainer?.let {
-            val hdlr: (Event)->Unit = { 
-            }    
-            it.addEventListener("start", hdlr)
-            it.addEventListener("finish", hdlr)
-            headerImageHdlr = hdlr
+            it.addEventListener("start", eventHdlr)
+            it.addEventListener("finish", eventHdlr)
+            headerImageHdlr = eventHdlr 
         }
     }
 
@@ -99,10 +121,12 @@ class App {
         }
     }
 
+
     fun run() {
         window.addEventListener("load", {
             evt ->
             bind()
+            start()
         },
         object {
             @JsName("once")

@@ -45,6 +45,10 @@ class Slide(
      */
     val imagesQuery: String,
     /**
+     * image parameter query
+     */
+    val imageParamsQuery: String,
+    /**
      * action query to get image layout 
      */
     val imageLayoutQuery: String,
@@ -77,16 +81,22 @@ class Slide(
                 containerQuery) as HTMLElement?
         }
 
+
+    /**
+     * start to setup
+     */
+    fun startSetting(): Promise<Unit> {
+        return Promise.all(
+            arrayOf(startToSyncSetting(),
+            startToSetupElementBackground())).then {
+            Unit
+        }
+    }
+
     /**
      * bind this object with window system
      */
     fun bind() {
-
-        Promise.all(
-            arrayOf(startToSyncSetting(),
-            startToSetupElementBackground())).then {
-            startToUpdateImages()
-        }
     }
 
     /**
@@ -103,7 +113,7 @@ class Slide(
     fun startToSyncSetting(): Promise<Unit> {
         val url = Site.requestUrl
         val searchParams = url.searchParams
-        searchParams.append("action", imagesQuery)
+        searchParams.append("action", imageParamsQuery)
         return window.fetch(url).then({
             it.json()
         }).then({

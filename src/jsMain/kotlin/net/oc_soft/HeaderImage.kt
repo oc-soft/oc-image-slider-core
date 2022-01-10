@@ -820,14 +820,17 @@ class HeaderImage(
 
         backgroundColors.forEachIndexed {
             idx, colorArray ->
+            val colorPattern = "\\\$\\{color${idx}\\}"
+             
             style = style.replace(
-                Regex("color${idx}"), colorArray.toHexString())
+                Regex(colorPattern), colorArray.toHexString())
         }
         
         imageUrls[imageUrlIndex]?.let {
             it.forEachIndexed {
                 idx, url ->
-                style = style.replace(Regex("url${idx}"), url)
+                val urlPattern = "\\\$\\{url${idx}\\}"
+                style = style.replace(Regex(urlPattern), url)
             }
         }
         val result = style
