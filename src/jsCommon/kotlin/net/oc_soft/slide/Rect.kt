@@ -168,7 +168,7 @@ class Rect {
              
 
             pointsAnimation.add(boundsSequence,
-                { updateClipPath(element, it) },
+                { points, _ -> updateClipPath(element, points) },
                 { handleStartAnimation() },
                 { handleFinishAnimation() },
                 getDuration(animationOption),

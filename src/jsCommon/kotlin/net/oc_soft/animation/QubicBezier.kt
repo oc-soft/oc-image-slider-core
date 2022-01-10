@@ -65,6 +65,49 @@ class QubicBezier(
          */
         val easeOut = QubicBezier(0.0, 0.0, 0.58, 1.0) 
 
+
+        /**
+         * leanear function
+         */
+        val linearFunction: (Double)->Double get() = { linear(it) }
+
+        /**
+         * ease function
+         */
+        val easeFunction: (Double)->Double get() = { ease(it) }
+
+        /**
+         * easeIn function
+         */
+        val easeInFunction: (Double)->Double get() = { easeIn(it) }
+
+        /**
+         * easeInOut function
+         */
+        val easeInOutFunction: (Double)->Double get() = { easeInOut(it) }
+
+        /**
+         * easeOut function
+         */
+        val easeOutFunction: (Double)->Double get() = { easeOut(it) }
+
+
+        /**
+         * string to bezier function
+         */
+        fun stringToConverter(functionType: String): ((Double)->Double)? {
+            return when (functionType) {
+                "linear" -> linearFunction
+                "ease" -> easeFunction
+                "ease-in",
+                "easeIn" -> easeInFunction
+                "ease-in-out",
+                "easeInOut" -> easeInOutFunction
+                "ease-out",
+                "easeOut" -> easeOutFunction
+                else -> null
+            }
+        }
     } 
 
     /**

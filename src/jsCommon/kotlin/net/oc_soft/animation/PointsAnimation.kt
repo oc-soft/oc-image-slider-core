@@ -25,7 +25,7 @@ class PointsAnimation(
      */
     data class Element(
         val points: Array<DoubleArray>,
-        val animate: (DoubleArray)->Unit,
+        val animate: (DoubleArray, frameRatio: Double)->Unit,
         val begin: ()->Unit,
         val finish: ()->Unit,
         val duration: Double,
@@ -61,7 +61,7 @@ class PointsAnimation(
      */
     fun add(
         points: Array<DoubleArray>,
-        animate: (DoubleArray)->Unit,
+        animate: (DoubleArray, Double)->Unit,
         begin: ()->Unit,
         finish: ()->Unit,
         duration: Double,
@@ -142,12 +142,12 @@ class PointsAnimation(
                         } 
                         
                         val rateToIndex = it.rateToIndex
+                        val timeRatio = localDuration / animDuration
+                        val frameRatio = rateToIndex(timeRatio)
                         val newPoints = DoubleArray(basePoint.size) {
-                            calcValue(point0[it], point1[it],
-                                localDuration / animDuration,
-                                rateToIndex) 
+                            calcValue(point0[it], point1[it], frameRatio) 
                         }
-                        it.animate(newPoints)
+                        it.animate(newPoints, frameRatio)
                     } else {
                         if (!(it in animating.watingForFinishElements)) {
                             val newPoints = DoubleArray(basePoint.size) {
@@ -157,7 +157,7 @@ class PointsAnimation(
                                     basePoint[it]
                                 }
                             }
-                            it.animate(newPoints)
+                            it.animate(newPoints, 1.0)
                             animating.watingForFinishElements.add(it)
                         } else {
                             if (it.duration + it.endDelay <= localDuration) {
@@ -187,15 +187,13 @@ class PointsAnimation(
     fun calcValue(
         startPoint: Double,
         endPoint: Double,
-        timeRatio: Double,
-        timeToFrameIndex: (Double) -> Double): Double {
+        frameIdx: Double): Double {
 
-        var frameIdx = timeToFrameIndex(timeRatio) 
-
-        frameIdx = kotlin.math.min(frameIdx, 1.0)
-        frameIdx = kotlin.math.max(frameIdx, 0.0)
+        var frameIdx0 = frameIdx
+        frameIdx0 = kotlin.math.min(frameIdx0, 1.0)
+        frameIdx0 = kotlin.math.max(frameIdx0, 0.0)
         
-        return startPoint * (1.0 - frameIdx) + endPoint * frameIdx 
+        return startPoint * (1.0 - frameIdx0) + endPoint * frameIdx0
     }
     
 }

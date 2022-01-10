@@ -33,17 +33,25 @@ import net.oc_soft.slide.Animation
  */
 class Slide(
     /**
+     * query for image container html element
+     */
+    val containerQuery: String,
+    /**
+     * query for html template 
+     */
+    val fragmentQuery: String,
+    /**
+     * action query to get images
+     */
+    val imagesQuery: String,
+    /**
+     * action query to get image layout 
+     */
+    val imageLayoutQuery: String,
+    /**
      * back ground element loader
      */
-    val elementBackground: ElementBackground = ElementBackground(),
-    /**
-     * query for image container
-     */
-    val containerQuery: String = ".header-image.container",
-    /**
-     * query for template query
-     */
-    val fragmentQuery: String = ".tmpl-header-image") {
+    val elementBackground: ElementBackground = ElementBackground()) {
 
 
     /**
@@ -95,7 +103,7 @@ class Slide(
     fun startToSyncSetting(): Promise<Unit> {
         val url = Site.requestUrl
         val searchParams = url.searchParams
-        searchParams.append("action", "get-header-image-params") 
+        searchParams.append("action", imagesQuery)
         return window.fetch(url).then({
             it.json()
         }).then({
@@ -110,7 +118,7 @@ class Slide(
     fun startToSetupElementBackground(): Promise<Unit> {
         val url = Site.requestUrl
         val searchParams = url.searchParams
-        searchParams.append("action", "get-image-layout") 
+        searchParams.append("action", imageLayoutQuery) 
         return window.fetch(url).then({
             it.json()
         }).then({
@@ -125,7 +133,7 @@ class Slide(
     fun startToUpdateImages(): Promise<Unit> {
         val url = Site.requestUrl
         val searchParams = url.searchParams
-        searchParams.append("action", "get-header-images") 
+        searchParams.append("action", imagesQuery) 
 
         return window.fetch(url).then({
             it.json()
