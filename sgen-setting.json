@@ -14,34 +14,6 @@
         ".swp$",
         ".+~$"
       ]
-    },
-    {
-      "root-dir": "src/site-manager",
-      "master-template": "site-manage-0.php",
-      "contents-dir" : "contents",
-      "template-root" : "frame",
-      "style-dir": "style",
-      "exclude": [
-        "^.git$",
-        ".gitignore$", 
-        ".DS_Store$",
-        ".swp$",
-        ".+~$"
-      ]
-    },
-    {
-      "root-dir": "src/site-common",
-      "master-template": "site-common-0.php",
-      "contents-dir" : "contents",
-      "template-root" : "frame",
-      "style-dir": "style",
-      "exclude": [
-        "^.git$",
-        ".gitignore$", 
-        ".DS_Store$",
-        ".swp$",
-        ".+~$"
-      ]
     }
   ], 
   "__comments": [

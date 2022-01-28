@@ -17,7 +17,6 @@ import kotlinx.browser.window
 
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
-import org.w3c.dom.HTMLTemplateElement
 import org.w3c.dom.events.Event
 import org.w3c.dom.Image
 import org.w3c.dom.get
@@ -33,38 +32,27 @@ import net.oc_soft.slide.Animation
  */
 class Slide(
     /**
-     * query for image container html element
-     */
-    val containerQuery: String,
-    /**
-     * query for html template 
-     */
-    val fragmentQuery: String,
-    /**
-     * action query to get images
-     */
-    val imagesQuery: String,
-    /**
      * image parameter query
      */
     val imageParamsQuery: String,
     /**
-     * action query to get image layout 
-     */
-    val imageLayoutQuery: String,
-    /**
      * back ground element loader
      */
-    val elementBackground: ElementBackground = ElementBackground()) {
-
+    val elementBackground: BackgroundStyle) {
 
     /**
-     * class instance
+     * background style 
      */
-    companion object {
+    data class BackgroundStyleElement(
+        /**
+         * urls
+         */
+        val urls: Array<String>?,
+        /**
+         * background image color
+         */
+        val colors: Array<DoubleArray>)
 
-
-    }
 
     /** 
      * slide setting
@@ -72,26 +60,8 @@ class Slide(
     val setting: MutableList<MutableMap<String, Any>> = 
         ArrayList<MutableMap<String, Any>>()
 
-    /**
-     * header root image container
-     */
-    val imageContainer: HTMLElement?
-        get() {
-            return document.querySelector(
-                containerQuery) as HTMLElement?
-        }
 
 
-    /**
-     * start to setup
-     */
-    fun startSetting(): Promise<Unit> {
-        return Promise.all(
-            arrayOf(startToSyncSetting(),
-            startToSetupElementBackground())).then {
-            Unit
-        }
-    }
 
     /**
      * bind this object with window system
@@ -110,7 +80,7 @@ class Slide(
     /**
      * sync parameter with site
      */
-    fun startToSyncSetting(): Promise<Unit> {
+    fun startSyncSetting(): Promise<Unit> {
         val url = Site.requestUrl
         val searchParams = url.searchParams
         searchParams.append("action", imageParamsQuery)
@@ -122,34 +92,18 @@ class Slide(
     }
 
 
-    /**
-     * start load to setup element background loader
-     */
-    fun startToSetupElementBackground(): Promise<Unit> {
-        val url = Site.requestUrl
-        val searchParams = url.searchParams
-        searchParams.append("action", imageLayoutQuery) 
-        return window.fetch(url).then({
-            it.json()
-        }).then({
-            elementBackground.loadSetting(it as Json)
-        })
-    }
-
     
     /**
      * start to create images
      */    
-    fun startToUpdateImages(): Promise<Unit> {
-        val url = Site.requestUrl
-        val searchParams = url.searchParams
-        searchParams.append("action", imagesQuery) 
-
-        return window.fetch(url).then({
-            it.json()
-        }).then({
-            autoSlide(it as Array<Json>) 
-        })
+    fun startToUpdateImages(
+        imageContainer: HTMLElement,
+        imageSource: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>,
+        createFragment: ()->HTMLElement?,
+        insertElement: (HTMLElement, HTMLElement)->Unit) {
+        autoSlide(imageContainer, imageSource, colors, 
+            createFragment, insertElement) 
     }
 
 
@@ -187,73 +141,52 @@ class Slide(
     /**
      * start slide image automatically
      */
-    fun autoSlide(imageSources: Array<Json>) {
-        autoSlide(imageSources, 0, 1, HashSet<Element>())
+    fun autoSlide(
+        imageContainer: HTMLElement,
+        imageSources: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>,
+        createFragment: ()->HTMLElement?,
+        insertElement: (HTMLElement, HTMLElement)->Unit) {
+        autoSlide(imageContainer, imageSources, 
+            colors, createFragment, insertElement, 0, 1, HashSet<Element>())
     }
 
-
-    /**
-     * load images and do slide automatically
-     */
-    fun loadImages(
-        imageSources: Array<Json>,
-        backImageIndex: Int,
-        imageIndex: Int): Promise<Array<out Int?>> {
-        
-        val indices = intArrayOf(backImageIndex, imageIndex)
-        val promises = Array<Promise<Int?>>(indices.size) {
-            val imgIdx = indices[it]
-            Promise<Int?>() { 
-                resolve, reject ->
-                if (imgIdx < imageSources.size) {
-                    getImageSourceUrl(imageSources, imgIdx)?.let {
-                        val img = Image()
-                        img.src = it
-                        img.onload = { 
-                            resolve(imgIdx)
-                        }
-                        img.onerror = { 
-                            msg, src, lineno, col, err ->
-                            resolve(null)
-                        }
-                    }?: resolve(null) 
-                } else {
-                    resolve(null)
-                } 
-            }
-        }
-        return Promise.all(promises) 
-    }
 
  
     /**
      * start slide image automatically
      */
-    fun autoSlide(imageSources: Array<Json>,
+    fun autoSlide(
+        imageContainer: HTMLElement,
+        imageSources: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>, 
+        createFragment: ()->HTMLElement?,
+        insertElement: (HTMLElement, HTMLElement)->Unit,
         backImageIndex: Int,
         imageIndex: Int,
         slideElements: Set<Element>) {
-        loadImages(imageSources, backImageIndex, imageIndex).then {
-            if (it[0] != null) {
-                val imageIndex0 = it[0]!!
-                getImageSourceUrl(imageSources, it[0]!!)?.let {
-                    val url = it
-                    imageContainer?.let {
-                        setBackgroundImage(it, imageIndex0, url)
-                        slideElements.forEach { it.remove() }
-                    }
-                } 
-            }
-            if (it[1] != null) {
-                val slideHdlr: (Event, Set<Element>)->Unit = {
-                    event, slideFragments ->
-                    if ("finish" == event.type) {
-                        autoSlide(imageSources, backImageIndex + 1,
-                            imageIndex + 1, slideFragments)
-                    }
-                } 
-                createImageEffect(imageSources, it[1]!!, slideHdlr)
-            }
+        getBackgroundStyleElement(
+            imageSources, colors, backImageIndex)?.let {
+            val styleElement = it
+            setBackgroundStyle(imageContainer, styleElement)
+            slideElements.forEach { it.remove() }
+        }
+        getBackgroundStyleElement(imageSources, colors, imageIndex)?.let {
+            val styleElement = it 
+            val slideHdlr: (Event, Set<Element>)->Unit = {
+                event, slideFragments ->
+                if ("finish" == event.type) {
+                    autoSlide(imageContainer, 
+                        imageSources, colors, 
+                        createFragment,
+                        insertElement,
+                        backImageIndex + 1,
+                        imageIndex + 1, slideFragments)
+                }
+            } 
+            createImageEffect(
+                imageContainer, imageSources, colors, 
+                createFragment, insertElement, imageIndex, slideHdlr)
         }
     }
 
@@ -261,11 +194,16 @@ class Slide(
     /**
      * get image source url
      */
-    fun getImageSourceUrl(
-        imageSources: Array<Json>,
-        index: Int): String? {
-        return imageSources[index]["url"]?.let {
-             it as String
+    fun getBackgroundStyleElement(
+        imageSources: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>,
+        index: Int): BackgroundStyleElement? {
+        return if (index < imageSources.size) {
+            BackgroundStyleElement(
+                imageSources[index],
+                colors[index % colors.size])
+        } else {
+            null
         }
     }
 
@@ -273,10 +211,13 @@ class Slide(
      * create image effect
      */
     fun createImageEffect(
-        imageSources: Array<Json>,
+        imageContainer: HTMLElement,
+        imageSources: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>,
+        createFragment: ()->HTMLElement?,
+        insertElement: (HTMLElement, HTMLElement)->Unit,
         imageIndex: Int,
-        animationListener: (
-            (Event, Set<Element>)->Unit)?) {
+        animationListener: ((Event, Set<Element>)->Unit)?) {
 
         val setting = if (this.setting.size > 0) {
             this.setting[imageIndex % this.setting.size]
@@ -284,36 +225,38 @@ class Slide(
             null
         }
         if (setting != null) { 
-            imageContainer?.let {
-                val elementContainer = it 
-                getImageSourceUrl(imageSources, imageIndex)?.let {
-                    val imageUrl = it 
+            val elementContainer = imageContainer 
+            getBackgroundStyleElement(
+                imageSources, colors, imageIndex)?.let {
+                val styleElement = it 
 
-                    val slideFragments = HashSet<Element>()
-                    val hdlr: (Event)->Unit = {
-                        event ->
-                        animationListener?.let {
-                            it(event, slideFragments)
-                        }
+                val slideFragments = HashSet<Element>()
+                val hdlr: (Event)->Unit = {
+                    event ->
+                    animationListener?.let {
+                        it(event, slideFragments)
+                    }
 
-                        handleAnimationEvent(
-                            event, imageSources, imageIndex, slideFragments)
+                    handleAnimationEvent(
+                        event, imageSources, colors,
+                            imageIndex, slideFragments)
+                }
+                Option.createFragments(elementContainer, 
+                    createFragment,
+                    elementBackground, 
+                    setting)?.let {
+                    it.fragments.forEach {
+                        setBackgroundStyle(
+                            it.element, styleElement)
+                        insertElement(elementContainer, it.element)
+                        slideFragments.add(it.element)      
                     }
-                    Option.createFragments(elementContainer, 
-                        { createPlainImageFragment() },
-                        setting)?.let {
-                        it.fragments.forEach {
-                            setBackgroundImage(it.element, imageIndex, imageUrl)
-                            elementContainer.append(it.element)
-                            slideFragments.add(it.element)      
-                        }
-                        elementContainer.addEventListener(
-                            "finish", hdlr, object {
-                                @JsName("once")
-                                val once = true
-                            })
-                        it.play()
-                    }
+                    elementContainer.addEventListener(
+                        "finish", hdlr, object {
+                            @JsName("once")
+                            val once = true
+                        })
+                    it.play()
                 }
             }
         }
@@ -324,7 +267,8 @@ class Slide(
      */
     fun handleAnimationEvent(
         event: Event,
-        imageSources: Array<Json>,
+        imageSources: Array<Array<String>>,
+        colors: Array<Array<DoubleArray>>,
         imageIndex: Int,
         elements: Set<Element>) {
         when (event.type) {
@@ -346,27 +290,16 @@ class Slide(
 
 
     /**
-     * clear images be contained in imageContainer
-     */
-    fun clearContainedImgages() {
-        imageContainer?.let {
-
-            while (it.firstElementChild != null) {
-                it.lastElementChild?.let {
-                    it.remove()
-                }
-            }
-        }
-    }
-
-    /**
      * set image url into element
      */
-    fun setBackgroundImage(
+    fun setBackgroundStyle(
         element: HTMLElement, 
-        imageLayoutIndex: Int,
-        url: String) {
-        setBackgroundImage(element, imageLayoutIndex, arrayOf(url))
+        backgroundStyleElement: BackgroundStyleElement) {
+        backgroundStyleElement.urls?.let {
+            setBackgroundStyle(element, 
+                it,
+                backgroundStyleElement.colors)
+        }
     }
 
 
@@ -374,28 +307,24 @@ class Slide(
     /**
      * set image url into element
      */
-    fun setBackgroundImage(
+    fun setBackgroundStyle(
         element: HTMLElement, 
-        imageLayoutIndex: Int,
-        url: Array<String>) {
+        url: Array<String>,
+        colors: Array<DoubleArray>) {
 
-        elementBackground.createBackground(imageLayoutIndex, url)?.let {
-            element.style.backgroundImage = it
-        }
+        element.style.backgroundImage = 
+            elementBackground.createBackgroundImageStyle(
+                url, colors)
+        element.style.backgroundRepeat = 
+            elementBackground.backgroundRepeat
+        element.style.backgroundPosition = 
+            elementBackground.backgroundPosition
+        element.style.backgroundSize =
+            elementBackground.backgroundSize
     }
 
 
-    /**
-     * create slide fragment
-     */
-    fun createPlainImageFragment(): HTMLElement? {
-        return document.querySelector(fragmentQuery)?.let {
-            val tmpElem = it as HTMLTemplateElement
-            tmpElem.content.firstElementChild?.let {
-                it.cloneNode(true) as HTMLElement
-            }
-        }
-    }
+
 }
 
 // vi: se ts=4 sw=4 et:

@@ -9,6 +9,7 @@ repositories {
     jcenter()
 }
 
+
 /**
  * snake to camel case
  */
@@ -115,6 +116,7 @@ ext.webpackSetting.gradleBuildPath =
 ext.karmaWebpackSetting = [
     gradleBuildPath: file("karma.config.d/00_${webpackSetting.gradleBuildJs}")
 ]
+
 
 ext.buildSiteDependsMode = 'Development'
 // ext.buildSiteDependsMode = 'Production'
@@ -423,6 +425,13 @@ task buildWpExtensionJs {
                 'run',
                 'build'
             ]
+        ],
+        [
+            dir: 'oc-range',
+            args: [
+                'run',
+                'build'
+            ]
         ]
     ]
     doLast {
@@ -519,6 +528,30 @@ task buildSite {
             include "**/*.php"
         }
     }
+    doLast {
+        def outputRootDir = readSgenSetting()['output-root']
+        def outputDir = "${outputRootDir}/js"
+
+        copy {
+            from "${projectDir}/oc-range/dist/js"
+            into outputDir
+            include "**/*.js"
+        }
+        outputDir = "${outputRootDir}/lib"
+        copy {
+            from "${projectDir}/oc-range/dist/php"
+            into outputDir
+            include "**/*.php"
+        }
+        outputDir = "${outputRootDir}/css"
+        copy {
+            from "${projectDir}/oc-range/dist/css"
+            into outputDir
+            include "**/*.css"
+        }
+    }
+
+    
 }
 
 buildSite.dependsOn buildWpExtensionJs
@@ -832,6 +865,26 @@ task copyWpToWebSite {
 }
 
 buildSite.dependsOn copyWpToWebSite
+
+/**
+ * copy plugins into web site image
+ */
+task copyPluginsToWebSite {
+
+    doLast {
+        def outputRoot = "${buildDir}/web-site/wp-content/plugins"
+
+        copy {
+            from "oc-pdf-viewer/build/oc-pdf-viewer"
+            into "${outputRoot}/oc-pdf-viewer"
+            include "**"
+        }
+    }
+}
+
+copyPluginsToWebSite.dependsOn ':oc-pdf-viewer:buildSiteImage'
+copyPluginsToWebSite.dependsOn copyWpToWebSite
+buildSite.dependsOn copyPluginsToWebSite
 
 
 

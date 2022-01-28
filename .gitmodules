@@ -22,3 +22,9 @@
 [submodule "oc-color-picker-alpha"]
 	path = oc-color-picker-alpha
 	url = https://github.com/oc-soft/oc-color-picker-alpha.git
+[submodule "oc-pdf-viewer"]
+	path = oc-pdf-viewer
+	url = https://github.com/oc-soft/wp-oc-pdf-viewer.git
+[submodule "oc-range"]
+	path = oc-range
+	url = https://github.com/oc-soft/wp-oc-range.git

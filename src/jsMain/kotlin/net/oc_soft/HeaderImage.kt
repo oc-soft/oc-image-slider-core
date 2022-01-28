@@ -23,27 +23,6 @@ import net.oc_soft.animation.QubicBezier
 import kotlin.math.roundToInt
 
 /**
- * convert double array to hex string
- */
-fun DoubleArray.toHexString(): String {
-
-    val intArray = IntArray(size) {
-        kotlin.math.min(0xff, kotlin.math.max(
-            0, (this[it] * 255.0).roundToInt()))
-    }
-    val hexStr = intArray.joinToString(
-        separator = "",
-        transform = { 
-            if (it < 0xf) {
-                "0${it.toString(16)}"
-            } else {
-                it.toString(16) 
-            }
-        })
-    return "#${hexStr}"
-}
-
-/**
  * animate backgournd image
  */
 class HeaderImage(
@@ -59,11 +38,15 @@ class HeaderImage(
      * header image elment query
      */
     val imageLayerElementQuery: String,
-    /**
-     * the query parameter for heder image parameter
-     */
-    val headerImageParamQuery: String) {
 
+    /**
+     * header image parameter query
+     */
+    val headerImageParamQuery: String,
+    /**
+     * background style
+     */
+    val backgroundStyle: BackgroundStyle) {
 
     /**
      * class instance
@@ -395,28 +378,24 @@ class HeaderImage(
          * procedure to convert time to frame index
          */
         val easingFunction: (Double) -> Double)
+
+
+
    
-    /**
-     * background image template
-     */
-    var backgroundImageTemplate: String =
-        "linear-gradient(\${color0}, \${color1}), url(\${imgUrl0})"
-
-
     /**
      * background position
      */
-    var backgroundPosition: String = "center, center"
+    val backgroundPosition: String get() = backgroundStyle.backgroundPosition
 
     /**
      * background repeat
      */
-    var backgroundRepeat: String = "no-repeat, no-repeat"
+    val backgroundRepeat: String get() = backgroundStyle.backgroundRepeat
 
     /**
      * background size
      */
-    var backgroundSize: String = "cover, cover"
+    val backgroundSize: String get() = backgroundStyle.backgroundSize
 
 
     /**
@@ -495,10 +474,6 @@ class HeaderImage(
      */
     fun updateSetting(setting: Json) {
 
-        updateBackgroundImageTemplate(setting)
-        updateBackgroundPosition(setting)
-        updateBackgroundRepeat(setting)
-        updateBackgroundSize(setting)
         updateBlurUnit(setting)
         updateImageUrls(setting)
         animationParams = jsonToSettingAnimationParams(setting)
@@ -506,45 +481,6 @@ class HeaderImage(
     }
 
 
-
-    /**
-     * update background template
-     */
-    fun updateBackgroundImageTemplate(setting: Json) {
-        val templateSetting = setting["background-template"]
-        if (templateSetting is String) {
-            backgroundImageTemplate = templateSetting
-        }
-    } 
-    
-    /**
-     * update background image position
-     */
-    fun updateBackgroundPosition(setting: Json) {
-        val positionSetting = setting["background-position"]
-        if (positionSetting is String) {
-            backgroundPosition = positionSetting 
-        }
-    } 
-
-    /**
-     * update background image repeat 
-     */
-    fun updateBackgroundRepeat(setting: Json) {
-        val repeatSetting = setting["background-repeat"]
-        if (repeatSetting is String) {
-            backgroundRepeat = repeatSetting 
-        }
-    } 
-    /**
-     * update background size
-     */
-    fun updateBackgroundSize(setting: Json) {
-        val sizeSetting = setting["background-size"]
-        if (sizeSetting is String) {
-            backgroundSize = sizeSetting 
-        }
-    } 
 
 
     /**
@@ -773,6 +709,15 @@ class HeaderImage(
     } 
 
     /**
+     * copy direct style on color layer from source to destination.
+     */
+    fun copyColorLayerStyle(
+        sourceElement: HTMLElement,
+        destElement: HTMLElement) {
+        destElement.style.color = sourceElement.style.color
+    }
+
+    /**
      * update blur layer style
      */
     fun updateBlurColorLayerStyle(
@@ -789,6 +734,17 @@ class HeaderImage(
         }
     }
 
+    /**
+     * copy direct style on blur color layer from source to destination.
+     */
+    fun copyBlurColorLayerStyle(
+        sourceElement: HTMLElement,
+        destElement: HTMLElement) {
+        destElement.style.color = sourceElement.style.color
+        destElement.style.filter = sourceElement.style.filter
+    }
+
+ 
 
     /**
      * update image layer style
@@ -815,24 +771,11 @@ class HeaderImage(
         backgroundColors: Array<DoubleArray>,
         imageUrlIndex: Int): String {
 
-        var style = backgroundImageTemplate
+        val urls = imageUrls[imageUrlIndex]?: emptyArray<String>()
 
+        val style = backgroundStyle.createBackgroundImageStyle(
+            urls, backgroundColors)
 
-        backgroundColors.forEachIndexed {
-            idx, colorArray ->
-            val colorPattern = "\\\$\\{color${idx}\\}"
-             
-            style = style.replace(
-                Regex(colorPattern), colorArray.toHexString())
-        }
-        
-        imageUrls[imageUrlIndex]?.let {
-            it.forEachIndexed {
-                idx, url ->
-                val urlPattern = "\\\$\\{url${idx}\\}"
-                style = style.replace(Regex(urlPattern), url)
-            }
-        }
         val result = style
         return result 
     }

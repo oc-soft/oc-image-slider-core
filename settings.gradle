@@ -8,3 +8,5 @@
  */
 
 rootProject.name = 'wesgee'
+
+include 'oc-pdf-viewer'

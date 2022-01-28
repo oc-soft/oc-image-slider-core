@@ -5,6 +5,7 @@ import kotlin.collections.MutableMap
 
 import org.w3c.dom.HTMLElement
 
+import net.oc_soft.BackgroundStyle
 
 /**
  * slide option
@@ -22,6 +23,7 @@ class Option {
         fun createFragments(
             containerElement: HTMLElement,
             generateElement: ()-> HTMLElement?,
+            backgroundStyle: BackgroundStyle,
             optionMap: Map<String, Any>)
             : Animation? {
             return optionMap["type"]?.let {
