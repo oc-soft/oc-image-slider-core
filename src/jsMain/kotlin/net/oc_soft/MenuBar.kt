@@ -61,6 +61,15 @@ class MenuBar {
     var resizeObserver: ResizeObserver? = null
 
     /**
+     * root menu visibility
+     */
+    val rootMenuVisible: Boolean
+        get() {
+            return rootMenu?.let {
+                window.getComputedStyle(it).visibility != "hidden"
+            }?: false
+        }
+    /**
      * attach menu bar
      */
     fun bind(
@@ -71,8 +80,6 @@ class MenuBar {
         this.subMenuItemHdlr = { handleSubMenuItem(it) }
         this.subMenuHideHdlr = { handleEventOnDocument(it) }
 
-        // attachAnchorContainer()
-        // attachDisclosure()
         
         layout().then {
             resizeObserver = ResizeObserver { 
@@ -91,8 +98,6 @@ class MenuBar {
      * detach menu form html elements
      */
     fun unbind() {
-
-
         resizeObserver?.let {
             it.disconnect()
             resizeObserver = null
@@ -100,8 +105,6 @@ class MenuBar {
         hideVisibledSubMenusAll() 
         rootMenu?.let {
             unbindSubMenuContainerListener(it)
-            // detachDisclosure()
-            // detachAnchorContainer()
             rootMenu = null
         } 
         subMenuItemHdlr = null
@@ -110,160 +113,23 @@ class MenuBar {
     }
 
     /**
-     * attach container into ancho
-     */
-    fun attachAnchorContainer() {
-        rootMenu?.let {
-            attachAnchorContainer(it)
-        }
-    }
-
-    /**
-     * attach anchor container
-     */
-    fun attachAnchorContainer(
-        menuContainer: HTMLElement) {
-        getMenuAnchorContainerTemplate()?.let {
-            val anchorItems = menuContainer.querySelectorAll("a") 
-            for (idx in 0 until anchorItems.length) {
-                val elem = anchorItems[idx] as Element 
-                val originalContents = createAnchorContainer(it, elem.innerHTML)
-                elem.innerHTML = ""
-                elem.append(originalContents) 
-            }
-        }
-    }
-
-    /**
-     * detach container from anchor element
-     */
-    fun detachAnchorContainer() {
-        rootMenu?.let {
-            detachAnchorContainer(it)
-        }
-    }
-
-    /**
-     * detach anchor container
-     */
-    fun detachAnchorContainer(
-        menuContainer: HTMLElement) {
-        val anchorItems = menuContainer.querySelectorAll("a") 
-        for (idx in 0 until anchorItems.length) {
-            val elem = anchorItems[idx] as Element
-            elem.firstElementChild?.let {
-                val originalContent = it.innerHTML
-                it.remove()
-                elem.innerHTML = originalContent
-            } 
-        } 
-    }
-
-
-    /**
-     * attach disclosure icons
-     */
-    fun attachDisclosure() {
-        val disclosureTemplates = getMenuDisclosureTemplate()
-        rootMenu?.let {
-            attachDisclosure(it, disclosureTemplates,
-                intArrayOf(1, 1), 0)
-        }
-    }
-
-
-
-    /**
-     * attach disclosure icons
-     */
-    fun attachDisclosure(
-        menuElement: Element,
-        disclosureTemplates: Array<Array<HTMLTemplateElement?>>,
-        minorIndices: IntArray,
-        level: Int) {
-        val children = menuElement.children
-        for (idx in 0 until children.length) {
-            val child = children[idx] as Element
-            child.querySelector(".sub-menu")?.let {
-                attachDisclosure(it as Element, 
-                    disclosureTemplates,
-                    minorIndices, level + 1)
-                createDisclosureElement(
-                    disclosureTemplates,
-                    level % 2,
-                    minorIndices[level % 2])?.let {
-                    attachDisclosureIcon(child, it)
-                }
-            }
-        }
-    }
-
-    /**
-     * detach dislosure icons
-     */
-    fun detachDisclosure() {
-        rootMenu?.let {
-            detachDisclosure(it)
-        }
-    }
-
-    /**
-     * detach disclosure icons
-     */
-    fun detachDisclosure(
-        menuElement: Element) {
-        val children = menuElement.children
-        for (idx in 0 until children.length) {
-            val child = children[idx] as Element
-            child.querySelector(".sub-menu")?.let {
-                detachDisclosure(it as Element)
-                detachDisclosureIcon(child)
-            }
-        }
-    }
-
-
-    /**
-     * attach disclosure
-     */
-    fun attachDisclosureIcon(
-        menuElement: Element,
-        disclosureIcon: SVGElement) {
-        menuElement.querySelector("a")?.let {
-            val elem = it as Element
-            elem.appendChild(disclosureIcon)
-        }
-    }
-
-    /**
-     * detach disclosure
-     */
-    fun detachDisclosureIcon(
-        menuElement: Element) {
-        menuElement.querySelector("a")?.let {
-            val elem = it as Element
-            elem.querySelector("svg")?.let {
-                elem.removeChild(it as Element)
-            }
-        }
-    }
-          
-
-    /**
      * layout menu location
      */
     fun layout():Promise<Unit> {
-        
-        return Promise.all(rootMenu?.let {
-            val promises = ArrayList<Promise<Unit>>()
-
-            layoutMenus(
-                it, 0, arrayOf(
-                    "bottom",
-                    "right"),
-                promises) 
-            promises.toTypedArray()
-        }?: emptyArray<Promise<Unit>>()).then { Unit }
+        return rootMenu?.let {
+            val children = it.children 
+            Promise.all(Array<Promise<Unit>>(children.length) {
+                val element = children[it] as Element
+                layoutMenus(element, 0,
+                    {
+                        if (it == 0) { 
+                            "bottom-start"
+                        } else {
+                            "right-start"
+                        }
+                    }) 
+            }).then { Unit }
+        }?: Promise.resolve(Unit)
     }
 
 
@@ -333,41 +199,63 @@ class MenuBar {
     fun layoutMenus(
         menuElement: Element,
         level: Int,
-        side: Array<String>,
-        layoutPromises: MutableList<Promise<Unit>>) {
+        placementProvider: (Int)->String): Promise<Unit> {
 
         val children = menuElement.children
+        val subMenuItems = ArrayList<Element>()
+        val computedPromises = ArrayList<Promise<Unit>>()
         for (idx in 0 until children.length) {
-            val child = children[idx] as Element
-            child.querySelector(".sub-menu")?.let {
+            val child = children[idx] as HTMLElement
+            if (child.classList.contains("sub-menu")) {
                 val computed = floating_ui.dom.computePosition(
-                    child, it, object {
+                    menuElement, child, object {
                         @JsName("placement")
-                        val placement = side[level % side.size]
-                    }) 
-                layoutPromises.add(setupComputedItem(
-                    it, 
-                    level + 1, side, computed,
-                    layoutPromises))
-                
+                        val placement = placementProvider(level)
+                    }).then {
+                        compRes: dynamic ->
+                        child.style.left = "${compRes.x}px"
+                        child.style.top = "${compRes.y}px"
+                        Unit
+                    }
+                subMenuItems.addAll(getSubMenuItems(child))
+                computedPromises.add(computed)
             }
         }
+        
+
+        return Promise<Unit>({
+            resolve, reject ->
+            Promise.all(computedPromises.toTypedArray()).then {
+                val subMenuPromises = ArrayList<Promise<Unit>>() 
+                subMenuItems.forEach {
+                    subMenuPromises.add(
+                        layoutMenus(it, level + 1, placementProvider))
+                }
+                Promise.all(subMenuPromises.toTypedArray()).then {
+                    resolve(Unit)
+                } 
+            }
+        })
+    }
+    
+    /**
+     * get sub menu items
+     */
+    fun getSubMenuItems(
+        subMenuElement: Element): Array<Element> {
+        val children = subMenuElement.children
+        val subMenuItems = ArrayList<Element>()
+
+        for (idx in 0 until children.length) {
+            val child = children[idx] as Element
+            if (child.classList.contains("menu-item")) {
+                subMenuItems.add(child)
+            }
+        }
+        
+        return subMenuItems.toTypedArray()
     }
 
-    /**
-     * setup computed item
-     */
-    fun setupComputedItem(
-        element: Element,
-        level: Int,
-        side: Array<String>,
-        computedItem: Promise<dynamic>,
-        layoutPromises: MutableList<Promise<Unit>>): Promise<Unit> {
-        return computedItem.then<Unit> {
-            layoutMenus(element, level, side, layoutPromises)    
-            Unit 
-        }
-    }
 
     /**
      * handle menu item
@@ -391,11 +279,12 @@ class MenuBar {
                 hideAllSubMenuInElement(elem)
             }
             event.stopPropagation()
-            if (event.target is HTMLAnchorElement) {
+            //if (event.target is HTMLAnchorElement) {
                 event.preventDefault()
-            }
+            //}
         }
     }
+
 
 
     /**
@@ -544,59 +433,17 @@ class MenuBar {
         entries: Array<ResizeObserverEntry>,
         observer: ResizeObserver) {
         layout()
+        window.setTimeout({
+            hideSubMenusAllIfRootNotVisible()
+        }) 
     } 
 
     /**
-     * create disclosure element
+     * hide sub-menus all if root menue is not visible
      */
-    fun createDisclosureElement(
-        templates: Array<Array<HTMLTemplateElement?>>,
-        majorIdx: Int,
-        minorIdx: Int): SVGElement?  {
-        return templates[majorIdx][minorIdx]?.let {
-            it.content.firstElementChild?.let {
-                it.cloneNode(true) as SVGElement
-            }
-        }
-    }
-
-    /**
-     * get menu disclosure template
-     */
-    fun getMenuDisclosureTemplate(): Array<Array<HTMLTemplateElement?>> {
-        val queries = Array<String>(4) { "template.menu-more-less-${it + 1}" }
-
-        return Array<Array<HTMLTemplateElement?>>(2) {
-            val idx0 = it 
-            Array<HTMLTemplateElement?>(2) {
-                document.querySelector(queries[idx0 * 2 + it])?.let {
-                    it as HTMLTemplateElement
-                }
-            } 
-        } 
-    }
-
-    /**
-     * create inner html
-     */
-    fun createAnchorContainer(
-        template: HTMLTemplateElement,
-        innerHTML: String): Element? {
-
-        return template.content.firstElementChild?.let {
-            val container = it.cloneNode(true) as Element
-            container.innerHTML = innerHTML
-            container
-        }
-    }
-    
-
-    /**
-     * get anchor container
-     */
-    fun getMenuAnchorContainerTemplate(): HTMLTemplateElement? {
-        return document.querySelector("template.menu-anchor-container")?.let {
-            it as HTMLTemplateElement
+    fun hideSubMenusAllIfRootNotVisible() {
+        if (!rootMenuVisible) {
+            hideVisibledSubMenusAll()
         }
     }
 

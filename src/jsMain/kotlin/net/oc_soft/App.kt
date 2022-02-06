@@ -5,6 +5,9 @@ import kotlin.js.Promise
 import kotlinx.browser.document
 import kotlinx.browser.window
 
+import kotlin.collections.MutableList
+import kotlin.collections.ArrayList
+
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLTemplateElement
 import org.w3c.dom.events.Event
@@ -30,6 +33,12 @@ class App {
      * slide fragment template query
      */
     val slideFragmentQuery = ".tmpl-header-image"
+
+
+    /**
+     * header menu query
+     */
+    val headerMenuQuery = "nav.header ul.menu"
 
     /**
      * header image container
@@ -60,6 +69,18 @@ class App {
             return document.querySelector(
                 headerMessageBoxBaseQuery)?.let {
                 it as HTMLElement
+            }
+        }
+
+    /**
+     * header menu html element
+     */
+    val headerMenuElements: Array<HTMLElement>
+        get() {
+            val elements= document.querySelectorAll(
+                headerMenuQuery)
+            return Array<HTMLElement>(elements.length) {
+                elements[it] as HTMLElement
             }
         }
 
@@ -103,6 +124,10 @@ class App {
         "get-slide-image-params",
         backgroundStyle[1])
 
+    /**
+     * header menubar
+     */
+    val headerMenuBars: MutableList<MenuBar> = ArrayList<MenuBar>()
 
 
     /**
@@ -235,12 +260,21 @@ class App {
      */
     fun bind() {
         slideImage.bind()
+
+        headerMenuElements.forEach {
+            val menuBar = MenuBar()
+            menuBar.bind(it)
+            headerMenuBars.add(menuBar)
+        }
     }
 
     /**
      * unbind this object from html elements
      */
     fun unbind() {
+
+        headerMenuBars.forEach { it.unbind() }
+        headerMenuBars.clear()
         slideImage.unbind()
 
     }

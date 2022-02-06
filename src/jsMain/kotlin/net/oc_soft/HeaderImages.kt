@@ -51,23 +51,25 @@ class HeaderImages(
          * load color
          */
         fun loadColor(entry: dynamic, defaultColor: DoubleArray): DoubleArray {
-            return if (entry is Array<*>) {
-                DoubleArray(defaultColor.size) {
+            return when (entry) {
+                is Array<*> -> DoubleArray(defaultColor.size) {
                     val colorValue = defaultColor[it] 
-                    if (it < entry.size) {
-                        val entryValue = entry[it]
-                        when (entryValue) {
-                            is String -> entryValue.toDoubleOrNull()?: 
-                                colorValue
-                            is Number-> entryValue.toDouble()
-                            else -> colorValue
+                        if (it < entry.size) {
+                            val entryValue = entry[it]
+                            when (entryValue) {
+                                is String -> entryValue.toDoubleOrNull()?: 
+                                    colorValue
+                                is Number-> entryValue.toDouble()
+                                else -> colorValue
+                            }
+                        } else {
+                            colorValue
                         }
-                    } else {
-                        colorValue
                     }
-                } 
-            } else {
-                defaultColor
+                is String -> Color.hexStringToDoubleArray(entry)?.let {
+                        it
+                    }?: defaultColor 
+                else -> defaultColor
             }
         }
     }

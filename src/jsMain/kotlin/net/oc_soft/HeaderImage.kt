@@ -112,12 +112,14 @@ class HeaderImage(
             var aValue: dynamic = param["color"]
             val color = when(aValue) {
                 is Array<*> -> arrayToDoubleArray(aValue, 4, 1.0)
+                is String -> Color.hexStringToDoubleArray(aValue)
                 else -> null 
             }
 
             aValue = param["blur-color"]
             val blurColor = when(aValue) {
                 is Array<*> -> arrayToDoubleArray(aValue, 4, 1.0)
+                is String -> Color.hexStringToDoubleArray(aValue)
                 else -> null
             }
 
@@ -135,6 +137,11 @@ class HeaderImage(
                         when (anElem) {
                             is Array<*> -> arrayToDoubleArray(anElem, 4, 1.0)
                             is Number -> DoubleArray(4) { anElem.toDouble() }
+                            is String -> {
+                                Color.hexStringToDoubleArray(anElem)?.let {
+                                    it
+                                }?: DoubleArray(4) { 1.0 }
+                            }
                             else -> DoubleArray(4) { 1.0 }
                         }
                     } 
