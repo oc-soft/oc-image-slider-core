@@ -11,6 +11,7 @@ import kotlin.collections.ArrayList
 import kotlin.collections.MutableList
 
 import org.w3c.dom.Image
+import org.w3c.dom.url.URLSearchParams
 
 /**
  * manage header image resource 
@@ -128,6 +129,21 @@ class HeaderImages(
     }
 
     /**
+     * get current query
+     */
+    fun getQuerysFromUrl(): Array<Pair<String, String>> {
+        val queryStr = window.location.search
+        val searchParams = URLSearchParams(queryStr)   
+        return if (searchParams.has("param-index")) {
+            arrayOf(
+                Pair("param-index", 
+                searchParams.get("param-index") as String))
+        } else {
+            emptyArray<Pair<String, String>>()
+        }
+    }
+
+    /**
      * synchroinze setting with site
      */
     fun startSyncSetting(): Promise<Unit> {
@@ -135,6 +151,9 @@ class HeaderImages(
         val urls = arrayOf(Site.requestUrl, Site.requestUrl)
         urls[0].searchParams.append("action", headerImagesQuery)
         urls[1].searchParams.append("action", additionsForImageQuery)
+        getQuerysFromUrl().forEach {
+            urls[1].searchParams.append(it.first, it.second)
+        }
 
         val promises = Array<Promise<Any>>(urls.size) {
             window.fetch(urls[it]).then({

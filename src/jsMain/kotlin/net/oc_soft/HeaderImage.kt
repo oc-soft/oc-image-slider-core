@@ -17,6 +17,7 @@ import org.w3c.dom.events.EventListener
 
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.Element
+import org.w3c.dom.url.URLSearchParams
 
 import net.oc_soft.animation.PointsAnimation
 import net.oc_soft.animation.QubicBezier
@@ -451,6 +452,24 @@ class HeaderImage(
             return document.querySelector(
                 imageLayerElementQuery) as HTMLElement?
         }
+
+
+    /**
+     * get current query
+     */
+    fun getQuerysFromUrl(): Array<Pair<String, String>> {
+        val queryStr = window.location.search
+        val searchParams = URLSearchParams(queryStr)   
+        return if (searchParams.has("param-index")) {
+            arrayOf(
+                Pair("param-index", 
+                searchParams.get("param-index") as String))
+        } else {
+            emptyArray<Pair<String, String>>()
+        }
+    }
+
+
     /**
      * start synchronize setting
      */
@@ -459,6 +478,10 @@ class HeaderImage(
         val url = Site.requestUrl
         val searchParams = url.searchParams
         searchParams.append("action", headerImageParamQuery) 
+
+        getQuerysFromUrl().forEach {
+            searchParams.append(it.first, it.second)
+        }
         return window.fetch(url).then({
             it.json()
         }).then({

@@ -10,3 +10,7 @@
 rootProject.name = 'wesgee'
 
 include 'oc-pdf-viewer'
+include 'oc-send-message'
+include 'oc-jp-addr-assistant'
+include 'oc-smart-table'
+include 'nbs-recruit-posts'

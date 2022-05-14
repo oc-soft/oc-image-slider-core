@@ -28,3 +28,12 @@
 [submodule "oc-range"]
 	path = oc-range
 	url = https://github.com/oc-soft/wp-oc-range.git
+[submodule "oc-send-message"]
+	path = oc-send-message
+	url = https://github.com/oc-soft/wp-oc-send-message.git
+[submodule "oc-jp-addr-assistant"]
+	path = oc-jp-addr-assistant
+	url = https://github.com/oc-soft/wp-oc-jp-addr-assistant.git
+[submodule "oc-smart-table"]
+	path = oc-smart-table
+	url = https://github.com/oc-soft/wp-oc-smart-table.git

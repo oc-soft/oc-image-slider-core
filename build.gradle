@@ -1,8 +1,9 @@
 
 
 plugins {
-    id 'org.jetbrains.kotlin.multiplatform' version '1.6.0'
+    id 'org.jetbrains.kotlin.multiplatform' version '1.6.21'
     id 'net.oc_soft.msgfmt' version '0.1.0'
+    id 'io.miret.etienne.sass' version '1.1.2'
 }
 
 repositories {
@@ -30,22 +31,6 @@ ext.styles = [
     'nbs-scss': [
         input: file('src/site/style/main.scss'),
         outputName: 'nbs.css'
-    ],
-    'post-mgr-scss': [
-        input: file('src/site/style/post-mgr.scss'),
-        outputName: 'post-mgr.css'
-    ],
-    'post-scss': [
-        input: file('src/site/style/post.scss'),
-        outputName: 'post.css'
-    ], 
-    'message-mgr-scss': [
-        input: file('src/site/style/message-mgr.scss'),
-        outputName: 'message-mgr.css'
-    ],
-    'work-us-mgr': [
-        input: file('src/site/style/work-us-mgr.scss'),
-        outputName: 'work-us-mgr.css'
     ]
 ]
 
@@ -54,21 +39,17 @@ ext.appNames = [
         compile: ['js', 'jvm' ],
         'js-name': 'nbs'
     ],
-    'post-mgr': [
-        compile: ['js']
-    ],
-    'post': [
-        compile: ['js']
-    ],
-    'message-mgr': [
-        compile: ['js']
-    ],
-    'work-us-mgr': [
-        compile: ['js']
-    ],
     'jp-addr-conv': [
         compile: ['jvm']
     ]
+]
+
+ext.wordpressPlugins = [
+    'oc-pdf-viewer',
+    'nbs-recruit-posts',
+    'oc-send-message',
+    'oc-jp-addr-assistant',
+    'oc-smart-table'
 ]
 
 ext.html = [:]
@@ -133,6 +114,10 @@ ext.jpAddrSetting = [
             output: "pref-city.json"
         ]
     ]
+]
+
+ext.wp = [
+    rootDir: file('build/web-site')
 ]
 
 /**
@@ -217,27 +202,17 @@ kotlin {
                 compileOnly npm('css-loader', '>=5.2.0')
                 compileOnly npm('sass-loader', '>=10.1.1')
                 compileOnly npm('@popperjs/core', '>=2.9.2')
+                compileOnly npm('@floating-ui/dom', '>=0.2.0')
             }
         }
 
         jsMain {
             dependsOn jsCommon
         }
-        jsPostMgr {
-            dependsOn jsCommon
-        }
-        
-        jsPost {
-            dependsOn jsCommon
-        }
-        jsMessageMgr{
-            dependsOn jsCommon
-        }
-        jsWorkUsMgr{
-            dependsOn jsCommon
-        }
     }
 }
+
+
 
 appNamesWithoutDefault.forEach {
     key, value ->
@@ -850,6 +825,132 @@ task createJpAddrConvAppScript {
 createJpAddrConvAppScript.dependsOn copyDependsJpAddrConvJar
 
 
+task createPot {
+
+    description = 'create internatinalization source file'
+
+
+    def srcDir = file("src/site")
+    inputs.dir srcDir
+
+    def outputFile = file("src/i18n/nbs.pot")
+    outputs.file outputFile
+    
+    doLast {
+        def inputs = fileTree(srcDir).filter { it.isFile() }.files 
+       
+        
+        exec {
+            args '-L', 'php'
+            args '-o', outputFile
+            args inputs
+            executable = 'xgettext'
+        }
+    }
+}
+
+task updatePo {
+
+    def langCodes = ['ja']
+
+    def potFile = file("src/i18n/nbs.pot")  
+    // inputs.files potFile
+
+    def poFiles = langCodes.collect { file("src/i18n/nbs-${it}.po") }
+     
+    poFiles.each {
+        def poFile = it
+        doLast {
+            exec {
+                args '-U'
+                args poFile, potFile
+                executable = 'msgmerge'
+            }
+        }
+    }
+}
+
+updatePo.dependsOn createPot
+
+
+/**
+ * get i18n source files
+ */
+def getI18nSources() {
+    def inputFiles = fileTree("src/i18n").filter {
+        def res = it.isFile() 
+        if (res) {
+            def extPos = it.name.lastIndexOf(".")  
+            if (extPos > 0) {
+                res = it.name.substring(extPos + 1) == "po"
+            }
+        }
+        res
+    }.files
+    return inputFiles
+}
+
+/**
+ * get mo file input and output pair
+ */
+def getMoFileParams() {
+    def outputDir = "${buildDir}/web-site/wp-content/languages/themes"
+    def inputFiles = getI18nSources()
+    def result = []
+    inputFiles.each {
+        def inputFile = it
+        def nameWithoutExt 
+        def extPos = inputFile.name.lastIndexOf(".")  
+        if (extPos > 0) {
+            nameWithoutExt = inputFile.name.substring(0, extPos)
+        } else {
+            nameWithoutExt = inputFile.name
+        }
+        def outputFile = new File(outputDir, "${nameWithoutExt}.mo")
+        result <<= [inputFile, outputFile]
+    }
+    return result
+}
+
+
+task createMo {
+    description = 'create mo file'
+
+    def inputAndOutputs = moFileParams
+    def potFile = file("src/i18n/nbs.pot")  
+    def outputDir = "${buildDir}/web-site/wp-content/languages/themes"
+
+
+    inputAndOutputs.each { 
+        inputs.files it[0] 
+    }
+    inputAndOutputs.each {
+        outputs.files it[1] 
+    }
+
+    inputAndOutputs.each {
+        def inputFile = it[0]
+        def outputFile = it[1]
+        doLast {     
+            exec {
+                args '-o', outputFile
+                args inputFile 
+                executable = 'msgfmt'
+            }
+        }
+    }
+    doLast {
+        copy {
+            from potFile
+            into outputDir
+        }
+    }
+
+    
+}
+
+createMo.dependsOn updatePo
+
 
 task copyWpToWebSite {
 
@@ -864,6 +965,9 @@ task copyWpToWebSite {
     }
 }
 
+createMo.dependsOn copyWpToWebSite
+
+buildSite.dependsOn copyWpToWebSite
 buildSite.dependsOn copyWpToWebSite
 
 /**
@@ -874,17 +978,161 @@ task copyPluginsToWebSite {
     doLast {
         def outputRoot = "${buildDir}/web-site/wp-content/plugins"
 
-        copy {
-            from "oc-pdf-viewer/build/oc-pdf-viewer"
-            into "${outputRoot}/oc-pdf-viewer"
-            include "**"
+        def pluginParams = [
+            [
+                from: "oc-pdf-viewer/build/oc-pdf-viewer",
+                into: "${outputRoot}/oc-pdf-viewer"
+            ],
+            [
+                from: "oc-send-message/build/oc-send-message",
+                into: "${outputRoot}/oc-send-message"
+            ],
+            [
+                from: "oc-jp-addr-assistant/build/oc-jp-addr-assistant",
+                into: "${outputRoot}/oc-jp-addr-assistant"
+            ],
+            [
+                from: "nbs-recruit-posts/build/nbs-recruit-posts",
+                into: "${outputRoot}/nbs-recruit-posts"
+            ],
+            [
+                from: "oc-smart-table/build/oc-smart-table",
+                into: "${outputRoot}/oc-smart-table"
+            ]
+        ]
+        pluginParams.each { 
+            def src = it.from
+            def dest = it.into
+            copy {
+                from src
+                into dest
+                include "**"
+            }
         }
     }
 }
 
+
+
+
 copyPluginsToWebSite.dependsOn ':oc-pdf-viewer:buildSiteImage'
+copyPluginsToWebSite.dependsOn ':nbs-recruit-posts:buildSiteImage'
+copyPluginsToWebSite.dependsOn ':oc-send-message:buildSiteImage'
+copyPluginsToWebSite.dependsOn ':oc-jp-addr-assistant:buildSiteImage'
+copyPluginsToWebSite.dependsOn ':oc-smart-table:buildSiteImage'
 copyPluginsToWebSite.dependsOn copyWpToWebSite
 buildSite.dependsOn copyPluginsToWebSite
+
+/**
+ * copy plugin language into web site image
+ */
+task copyPluginLanguagesToWebSite {
+
+    doLast {
+        def outputRoot = "${buildDir}/web-site/wp-content/languages/plugins"
+
+        def pluginParams = [
+            [
+                from: "oc-pdf-viewer/build/languages",
+                into: "${outputRoot}"
+            ],
+            [
+                from: "oc-send-message/build/languages/plugins",
+                into: "${outputRoot}"
+            ],
+            [
+                from: "nbs-recruit-posts/build/languages/plugins",
+                into: "${outputRoot}"
+            ]
+        ]
+        pluginParams.each { 
+            def src = it.from
+            def dest = it.into
+            copy {
+                from src
+                into dest
+                include "**"
+            }
+        }
+    }
+}
+
+copyPluginLanguagesToWebSite.dependsOn ':oc-pdf-viewer:buildSiteImage'
+copyPluginLanguagesToWebSite.dependsOn ':oc-send-message:buildSiteImage'
+copyPluginLanguagesToWebSite.dependsOn ':nbs-recruit-posts:buildSiteImage'
+copyPluginLanguagesToWebSite.dependsOn copyWpToWebSite
+buildSite.dependsOn copyPluginLanguagesToWebSite
+
+task archiveTheme(type: org.gradle.api.tasks.bundling.Zip) {
+
+    description = 'archive theme'
+    def inputDir = "${buildDir}/web-site/wp-content/themes/nbs"
+
+    def outputDir = new File(buildDir, "wordpress/themes/")
+
+    archiveBaseName = "nbs"
+    destinationDir = outputDir 
+    into "nbs"
+    from inputDir
+}
+
+
+archiveTheme.dependsOn buildSite
+
+task createModulesForUpload {
+    description = 'create some modules for upload'
+    def pluginNames = project.wordpressPlugins
+    doLast {
+        pluginNames.each {  
+            def pluginName = it
+            def childBuildDir = childProjects[pluginName].buildDir
+
+            copy {
+                from childBuildDir
+                include 'wordpress/plugins/**/*'
+                into buildDir
+            }
+
+            copy {
+                from "${childBuildDir}/wordpress/languages"
+                include '**/*'
+                into "${buildDir}/wordpress/languages/"
+            }
+        }
+    }
+}
+
+
+ext.wordpressPlugins.each {
+    createModulesForUpload.dependsOn ":${it}:archivePlugin"
+}
+
+/**
+ * create language archive module
+ */
+task createThemeLanguageModule(
+    type: org.gradle.api.tasks.bundling.Zip) {
+    description = 'create theme language archive module'
+    def inputAndOutputs = moFileParams
+    def potFile = file("src/i18n/nbs.pot")  
+    
+    from "${buildDir}/web-site/wp-content/languages/themes"
+    include potFile.name
+    inputAndOutputs.each {
+        include it[1].name
+    }
+    into "languages/themes"
+    archiveBaseName = "nbs"
+    destinationDir = new File(buildDir, "wordpress/languages/themes")
+}
+
+createThemeLanguageModule.dependsOn buildSite
+
+createModulesForUpload.dependsOn archiveTheme
+
+createModulesForUpload.dependsOn createThemeLanguageModule
+
+
 
 
 
@@ -918,5 +1166,5 @@ task generateJpAddrResource {
 
 generateJpAddrResource.dependsOn createJpAddrConvAppScript
 
-buildSite.dependsOn generateJpAddrResource
+// buildSite.dependsOn generateJpAddrResource
 // vi: se ts=4 sw=4 et:

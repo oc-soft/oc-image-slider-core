@@ -14,7 +14,7 @@ fun DoubleArray.toHexString(): String {
     val hexStr = intArray.joinToString(
         separator = "",
         transform = { 
-            if (it < 0xf) {
+            if (it <= 0xf) {
                 "0${it.toString(16)}"
             } else {
                 it.toString(16) 

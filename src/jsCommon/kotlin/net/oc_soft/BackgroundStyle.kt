@@ -9,6 +9,7 @@ import kotlin.collections.MutableList
 import kotlin.collections.ArrayList
 
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.url.URLSearchParams
 
 /**
  * manage background style 
@@ -90,7 +91,22 @@ class BackgroundStyle(
     } 
 
 
+    /**
+     * get current query
+     */
+    fun getQuerysFromUrl(): Array<Pair<String, String>> {
+        val queryStr = window.location.search
+        val searchParams = URLSearchParams(queryStr)   
+        return if (searchParams.has("param-index")) {
+            arrayOf(
+                Pair("param-index", 
+                searchParams.get("param-index") as String))
+        } else {
+            emptyArray<Pair<String, String>>()
+        }
+    }
 
+ 
 
     /**
      * start load to setup element background loader
@@ -99,6 +115,11 @@ class BackgroundStyle(
         val url = Site.requestUrl
         val searchParams = url.searchParams
         searchParams.append("action", imageLayoutQuery) 
+        getQuerysFromUrl().forEach {
+            searchParams.append(it.first, it.second)
+        }
+        
+
         return window.fetch(url).then({
             it.json()
         }).then({
