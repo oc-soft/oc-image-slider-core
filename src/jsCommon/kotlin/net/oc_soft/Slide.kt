@@ -24,6 +24,7 @@ import org.w3c.dom.set
 import org.w3c.dom.animate
 
 import kotlin.text.toIntOrNull
+import kotlin.text.toBoolean
 import net.oc_soft.slide.Option
 import net.oc_soft.slide.Animation
 
@@ -60,7 +61,10 @@ class Slide(
     val setting: MutableList<MutableMap<String, Any>> = 
         ArrayList<MutableMap<String, Any>>()
 
-
+    /**
+     * the slide is looping
+     */
+    var loopSlide: Boolean = false
 
 
     /**
@@ -110,13 +114,18 @@ class Slide(
     /**
      * update setting 
      */
-    fun updateSetting(params: Json) {
+    fun updateSetting(param: Json) {
+        
+        val settings = param["settings"]
+        val params0 = settings?.let {
+            if (it is Array<*>) {
+                it as Array<Json>
+            } else {
+                arrayOf(it as Json) 
+            }
+        }?: emptyArray<Json>()
 
-        val params0 = if (params is Array<*>) {
-            params as Array<Json>
-        } else {
-            arrayOf(params) 
-        }
+        
 
         params0.forEachIndexed {
             idx, elem ->
@@ -127,6 +136,7 @@ class Slide(
                 setting[idx].clear()
                 setting[idx]
             }
+
             val keys = js("Object.keys(elem)")
 
             for (i in 0 until (keys.length as Int)) {
@@ -136,6 +146,17 @@ class Slide(
         }
         while (params0.size > setting.size) {
             setting.removeAt(setting.lastIndex)
+        }
+        val control = param["control"]
+        control?.let {
+            val control0 = it as Json 
+            it["loop"]?.let { 
+                this.loopSlide = when (it) {
+                is Boolean ->  it 
+                is String -> it.toBoolean()
+                else -> this.loopSlide
+                }
+            }
         }
     }
     /**
@@ -198,10 +219,17 @@ class Slide(
         imageSources: Array<Array<String>>,
         colors: Array<Array<DoubleArray>>,
         index: Int): BackgroundStyleElement? {
-        return if (index < imageSources.size) {
+        
+        var index0 = if (loopSlide) {
+            index % imageSources.size
+        } else {
+            index
+        }
+        
+        return if (index0 < imageSources.size) {
             BackgroundStyleElement(
-                imageSources[index],
-                colors[index % colors.size])
+                imageSources[index0],
+                colors[index0 % colors.size])
         } else {
             null
         }
