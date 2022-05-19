@@ -10,10 +10,7 @@ class Entries {
   setupConfig(config) {
     config.entry = config.entry || { }
 
-
-
     Object.assign(config.entry, GradleBuild.config.js[config.mode])
-    Object.assign(config.entry, GradleBuild.config.style)
  
   }
 }

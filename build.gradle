@@ -1,12 +1,11 @@
 
 
 plugins {
-    id 'org.jetbrains.kotlin.multiplatform' version '1.6.21'
-    id 'net.oc_soft.msgfmt' version '0.1.0'
-    id 'io.miret.etienne.sass' version '1.1.2'
+    id 'org.jetbrains.kotlin.multiplatform'
 }
 
 repositories {
+    mavenCentral()
     jcenter()
 }
 
@@ -19,37 +18,15 @@ String.metaClass.snakeToCamel = {
    replaceAll('(_|-)([a-z])') { it[2].toUpperCase() }
 }
 
-ext.styles = [
-    'style-scss': [
-        input: file('src/site/style/style.scss'),
-        outputName: 'style.css'
-    ],
-    'nbs-scss-root': [
-        input: file('src/site/style/main-root.scss'),
-        outputName: 'nbs-root.css'
-    ],
-    'nbs-scss': [
-        input: file('src/site/style/main.scss'),
-        outputName: 'nbs.css'
-    ]
-]
-
-ext.appNames = [
+ext.appSettings = [
     'main': [
-        compile: ['js', 'jvm' ],
-        'js-name': 'nbs'
-    ],
-    'jp-addr-conv': [
-        compile: ['jvm']
+        compile: ['js' ],
+        'js-name': 'main',
+        'out-name': 'main'
     ]
 ]
 
 ext.wordpressPlugins = [
-    'oc-pdf-viewer',
-    'nbs-recruit-posts',
-    'oc-send-message',
-    'oc-jp-addr-assistant',
-    'oc-smart-table'
 ]
 
 ext.html = [:]
@@ -63,17 +40,6 @@ ext.browserClass =
 ext.dceDir = browserClass.DCE_DIR
 ext.dceDevDir = browserClass.DCE_DEV_DIR
 
-ext.jarApp = [
-    output: "${buildDir}/jar/${rootProject.name}",
-    exeSh: "gen.sh"
-]
-
-
-ext.jarJpAddrConvApp = [
-    output: "${buildDir}/jar/${rootProject.name}-jpAddrConv",
-    exeSh: "jpAddrConv.sh"
-]
-
 ext.webpackSetting = [
     gradleBuildJs: 'gradle-build.js',
     libraryTarget: 'umd',
@@ -81,13 +47,6 @@ ext.webpackSetting = [
     cssDir: 'css',
     externals: [
         kotlin: 'kotlin'
-    ],
-    bundleReport: [
-        externals: [
-            kotlin: [
-               url: 'https://unpkg.com/kotlin@1.6.0'
-            ]
-        ]
     ]
 ]
 
@@ -102,19 +61,6 @@ ext.karmaWebpackSetting = [
 ext.buildSiteDependsMode = 'Development'
 // ext.buildSiteDependsMode = 'Production'
 
-ext.jpAddrSetting = [
-    addressSource: "address-jp/address.csv",
-    options: [
-        [
-            convopt: "ZIP",
-            output: "postal-number.json"
-        ],
-        [
-            convopt: "PREF_CITY",
-            output: "pref-city.json"
-        ]
-    ]
-]
 
 ext.wp = [
     rootDir: file('build/web-site')
@@ -123,9 +69,9 @@ ext.wp = [
 /**
  * get application names without default entry
  */
-def getAppNamesWithoutDefault() {
+def getAppSettingsWithoutDefault() {
     def result = [:]
-    appNames.each {
+    appSettings.each {
         key, value ->
         if (key != 'main') {
             result.put(key, value)
@@ -138,7 +84,7 @@ def getAppNamesWithoutDefault() {
 def createCompilation(
     def compilations,
     def kind) {
-    appNamesWithoutDefault.each {
+    appSettingsWithoutDefault.each {
         key, value ->
         if (value.compile.contains(kind)) {
             compilations.create(key.snakeToCamel())
@@ -148,9 +94,6 @@ def createCompilation(
 
 
 kotlin {
-    jvm {
-        createCompilation(compilations, 'jvm')
-    }
 
     js {
         createCompilation(compilations, 'js')
@@ -163,45 +106,10 @@ kotlin {
     }
 
     sourceSets {
-        jvmCommon {
-            dependencies {
-                implementation 'com.google.code.gson:gson:2.8.7'
-            }
-        }
-        jvmMain {
-            dependsOn jvmCommon
-            dependencies {
-                implementation 'gnu.getopt:java-getopt:1.0.13'
-                implementation 'com.google.guava:guava:23.0'
-            }
-        }
-
-        jvmJpAddrConv {
-            dependsOn jvmCommon
-            dependencies {
-                implementation 'gnu.getopt:java-getopt:1.0.13'
-                implementation 'com.google.guava:guava:23.0'
-                implementation 'org.apache.commons:commons-csv:1.9.0'
-            }
-        }
- 
+        
         jsCommon {
-            dependsOn commonMain
             dependencies {
                 implementation kotlin('stdlib-js')
-                implementation( 
-                    'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3')
-                compileOnly npm('html-webpack-plugin', '>=4.0.2')
-                compileOnly npm('webpack-cdn-plugin', '>=3.3.1')
-                compileOnly npm('clean-webpack-plugin', '>=4.0.0-alpha.0')
-                compileOnly npm('mini-css-extract-plugin', '>=1.4.0')
-                compileOnly npm('@fortawesome/fontawesome-free', '>=5.15.1')
-                compileOnly npm('bootstrap', '>=5.0.0')
-                compileOnly npm('jquery', '>=3.5.1')
-                compileOnly npm('sass', '>=1.32.8')
-                compileOnly npm('css-loader', '>=5.2.0')
-                compileOnly npm('sass-loader', '>=10.1.1')
-                compileOnly npm('@popperjs/core', '>=2.9.2')
                 compileOnly npm('@floating-ui/dom', '>=0.2.0')
             }
         }
@@ -214,35 +122,11 @@ kotlin {
 
 
 
-appNamesWithoutDefault.forEach {
-    key, value ->
-    if (value.compile.contains('js')) {
-        def jsCompilation = getJsCompilation(key)
-        tasks.create(
-            "${key.snakeToCamel()}Dce",
-            net.oc_soft.JsDceTask) {
-            setupDceTask(it, jsCompilation, dceDir)
-            jsBrowserProductionWebpack.dependsOn it
-        }
-        jsBrowserProductionWebpack.inputs.files getDceOutput(
-            key.snakeToCamel(), false)
-
-        tasks.create(
-            "${key.snakeToCamel()}DceDev",
-            net.oc_soft.JsDceTask) {
-            setupDceTask(it, jsCompilation, dceDevDir)
-            jsBrowserDevelopmentWebpack.dependsOn it
-        }
-        jsBrowserDevelopmentWebpack.inputs.files getDceOutput(
-            key.snakeToCamel(), true)
-
-    }
-}
 /**
  * create compiled javascript entry
  */
 def createJsEntries(String mode) {
-    appNamesWithoutDefault.findAll {
+    appSettingsWithoutDefault.findAll {
         key, value ->
         value.compile.contains('js')
     }.collectEntries { 
@@ -250,26 +134,6 @@ def createJsEntries(String mode) {
         def compilationName = key.snakeToCamel()
         [ key, getDceOutput(compilationName, mode == 'development') ]
     } 
-}
-
-/**
- * create style entries
- */
-def createStyleEntries() {
-    return styles.collectEntries {
-        key, value ->
-        [key, value.input] 
-    }
-}
-
-/**
- * create mapping data for css output
- */
-def createCssOutputMap() {
-    return styles.collectEntries {
-        key, value ->
-        [key, value.outputName]
-    }
 }
 
 task webpackGradleBuild {
@@ -280,20 +144,15 @@ task webpackGradleBuild {
             jsEntries[it]  = createJsEntries(it)
         }        
         buildSetting['js'] = jsEntries 
-        buildSetting['style'] = createStyleEntries()
-        buildSetting['cssOutput'] = createCssOutputMap()
-        buildSetting['jsDir'] = webpackSetting.jsProgramDir
-        buildSetting['cssDir'] = webpackSetting.cssDir
-        buildSetting['externals'] = webpackSetting.externals
-        buildSetting['mainProgramName'] = appNames['main']['js-name']
-        buildSetting['jsRootDir'] = 
-            rootPackageJson.rootPackageJson.parentFile.toString()
-        buildSetting['bundle-report'] = webpackSetting.bundleReport
-        buildSetting['html'] = html
-        buildSetting['htmlCdn'] = htmlCdn
-        buildSetting['cssOutput'] = createCssOutputMap()   
+        buildSetting['mainProgramName'] = appSettings['main']['js-name']
         def tmp = new groovy.text.StreamingTemplateEngine()
-        def gradleBuildSrc = file("tools/${webpackSetting.gradleBuildJs}")
+        def gradleBuildSrc = """
+class GradleBuild {
+  static get config() {
+    const result = <% out.print config %>;
+    return result;
+  }
+}"""
         tmp = tmp.createTemplate(gradleBuildSrc) 
         def jsonGenerator = new groovy.json.JsonGenerator.Options()
             .addConverter(File.class) { it.toString() }
@@ -305,273 +164,12 @@ task webpackGradleBuild {
             config: buildConfig
         ])
         webpackSetting.gradleBuildPath.text = gradleBuildContents
-        karmaWebpackSetting.gradleBuildPath.text = gradleBuildContents
     }
 }
 
 
-
-def getRuntimeDependencyFiles(def compilationName) {
-    return kotlin.targets.jvm.compilations[
-        compilationName].runtimeDependencyFiles
-}
-
-
-task copyDependsJar {
-
-    doLast {
-
-        def classes = getRuntimeDependencyFiles('main')
-        classes += jvmJar.archivePath
-
-        copy {
-            from classes
-            into jarApp.output
-        }
-    }
-}
-copyDependsJar.dependsOn jvmJar
-
-
-task createAppScript {
-
-    doLast {
-        def classes = getRuntimeDependencyFiles('main')
-        classes += jvmJar.archivePath
-
-         
-        def classPathArray = []
-        classes.each {
-            classPathArray.add("\${JAR_ROOT_DIR}/${it.name}")
-        }
-    
-        def classPaths = classPathArray.join(':') 
-        def binding = [
-            classpaths: "-cp \"${classPaths}\"",
-            mainclass: 'net.oc_soft.sgen.App'
-        ]
-        def runJarSrc0 = new File("${projectDir}/tools/run-jar-0.sh")
-        def runJarSrc1 = new File("${projectDir}/tools/run-jar-1.sh")
-        def tmp = new groovy.text.StreamingTemplateEngine()
-        tmp = tmp.createTemplate(runJarSrc1)
-        def jarSh = runJarSrc0.text + tmp.make(binding)
-
-
-        def shPath = new File("${jarApp.output}/${jarApp.exeSh}")
-        shPath.text = jarSh
-        shPath.executable = true
-
-    }
-}
-
-createAppScript.dependsOn copyDependsJar
-
-
-/**
- * build wordpress extenseion
- */
-task buildWpExtensionJs {
-
-    def execParams = [
-        [
-            dir: 'wp-color-ext',
-            args: [
-                'run',
-                'build'
-            ] 
-        ],
-        [
-            dir: 'wp-iris-alpha-js',
-            args: [
-                'run',
-                'build'
-            ]
-        ],
-        [
-            dir: 'wp-color-picker-alpha-js',
-            args: [
-                'run',
-                'build' 
-            ]
-        ],
-        [
-            dir: 'oc-color-picker-alpha',
-            args: [
-                'run',
-                'build'
-            ]
-        ],
-        [
-            dir: 'oc-range',
-            args: [
-                'run',
-                'build'
-            ]
-        ]
-    ]
-    doLast {
-        execParams.each {
-            def execWorkingDir = it.dir
-            def execArgs = it.args
-            exec {
-                executable = 'npm'
-                workingDir = execWorkingDir
-                args execArgs
-            }
-        }
-    }
-}
-
-
-task buildSite {
-    doLast {
-        exec {
-            workingDir projectDir
-            executable = new File("${jarApp.output}/${jarApp.exeSh}")
-        }
-    }
-    /**
-     * copy wordpress color extention into wp theme directory
-     */
-    doLast  {
-        def outputDir = readSgenSetting()['output-root']
-        outputDir = "${outputDir}/js"
-
-        [
-            "${projectDir}/wp-color-picker-alpha-js/dist/",
-        ].each {
-            def srcDir = it 
-            copy {
-                from srcDir
-                into outputDir
-                include "**/*.js"
-            }
-        }
-    }
-    /**
-     * copy color picker alpha extention into wp theme directory
-     */
-    doLast  {
-        def outputDir = readSgenSetting()['output-root']
-        outputDir = "${outputDir}/js"
-
-        [
-            "${projectDir}/wp-color-ext/dist/",
-        ].each {
-            def srcDir = it 
-            copy {
-                from srcDir
-                into outputDir
-                include "**/*.js"
-            }
-        }
-    }
-    /**
-     * copy iris color picker alpha into wp theme directory
-     */
-    doLast  {
-        def outputDir = readSgenSetting()['output-root']
-        outputDir = "${outputDir}/js"
-
-        [
-            "${projectDir}/wp-iris-alpha-js/dist/",
-        ].each {
-            def srcDir = it 
-            copy {
-                from srcDir
-                into outputDir
-                include "**/*.js"
-            }
-        }
-    }
-    /**
-     * copy wordpress exntension for theme
-     */
-    doLast {
-        def outputRootDir = readSgenSetting()['output-root']
-        def outputDir = "${outputRootDir}/js"
-
-        copy {
-            from "${projectDir}/oc-color-picker-alpha/dist/js"
-            into outputDir
-            include "**/*.js"
-        }
-        outputDir = "${outputRootDir}/lib"
-        copy {
-            from "${projectDir}/oc-color-picker-alpha/dist/php"
-            into outputDir
-            include "**/*.php"
-        }
-    }
-    doLast {
-        def outputRootDir = readSgenSetting()['output-root']
-        def outputDir = "${outputRootDir}/js"
-
-        copy {
-            from "${projectDir}/oc-range/dist/js"
-            into outputDir
-            include "**/*.js"
-        }
-        outputDir = "${outputRootDir}/lib"
-        copy {
-            from "${projectDir}/oc-range/dist/php"
-            into outputDir
-            include "**/*.php"
-        }
-        outputDir = "${outputRootDir}/css"
-        copy {
-            from "${projectDir}/oc-range/dist/css"
-            into outputDir
-            include "**/*.css"
-        }
-    }
-
-    
-}
-
-buildSite.dependsOn buildWpExtensionJs
-buildSite.dependsOn createAppScript
-
-
-def setupWebpack(
-    def webpackTask) {
-
-    styles.each {
-        key, value ->
-        webpackTask.inputs.files value.input
-    }
-    html.each {
-        key, value ->
-        webpackTask.inputs.files value.source
-    }
-
-    fileTree("${projectDir}/src/site/style/") {
-        include '**/*.scss'
-    }.each {
-        webpackTask.inputs.files it
-    }
-
-    files("${projectDir}/webpack.config.d/*.js").each {
-        if (it != webpackSetting.gradleBuildPath) {
-            webpackTask.inputs.files it
-        }
-    }
-
-    def distDir = getDistributionDir()
-
-    fileTree(distDir) {
-        include '**/*.js'
-        include '**/*.css'
-        include '**/*.php'
-    }.forEach {
-        webpackTask.outputs.files it
-    }
-    webpackTask.dependsOn webpackGradleBuild
-
-}
-
-setupWebpack(jsBrowserProductionWebpack)
-setupWebpack(jsBrowserDevelopmentWebpack)
+jsBrowserDevelopmentWebpack.dependsOn webpackGradleBuild
+jsBrowserProductionWebpack.dependsOn webpackGradleBuild
 
 
 
@@ -592,74 +190,6 @@ def getDistributionDir() {
     return result
 }
 
-def readSgenSetting() {
-    def sgenSetting = new File("${projectDir}/sgen-setting.json")
-    return new groovy.json.JsonSlurper().parseText(sgenSetting.text)
-}
-
-task jsResourcesForSite {
-
-    doLast {
-        
-        def sgenSetting = readSgenSetting()
-        def outputRoot = sgenSetting['output-root']
-        def distDir = getDistributionDir() 
-        
-        copy {
-            from distDir
-            include '**/*.php'
-            into "${outputRoot}/lib"
-        }
-        copy {
-            from distDir
-            include 'bundle-report.json'
-            into outputRoot
-        }
-
-        delete "${outputRoot}/${webpackSetting.jsProgramDir}",
-            "${outputRoot}/${webpackSetting.cssDir}"
-        
-        copy {
-            from "${distDir}/${webpackSetting.jsProgramDir}"
-            include '*.js'
-            include '*.map'
-            into "${outputRoot}/${webpackSetting.jsProgramDir}"
-        }
-        copy {
-            from "${distDir}/${webpackSetting.cssDir}"
-            include '*.css'
-            into "${outputRoot}/${webpackSetting.cssDir}"
-        }
-        copy {
-            from "${distDir}/${webpackSetting.cssDir}"
-            include 'style.css'
-            into outputRoot
-        }
-
-    }
-}
-
-jsResourcesForSite.dependsOn tasks.getByPath(
-    "jsBrowser${buildSiteDependsMode}Webpack")
-
-buildSite.dependsOn jsResourcesForSite
-
-/** get developement dce name as string */
-def getDceDevDir() {
-    def browserClass = null
-    browserClass = 
-        org.jetbrains.kotlin.gradle.targets.js.subtargets.KotlinBrowserJs 
-    return browserClass.DCE_DEV_DIR
-}
-
-/** get dce name as string*/
-def getDceDir() {
-    def browserClass = null
-    browserClass = 
-        org.jetbrains.kotlin.gradle.targets.js.subtargets.KotlinBrowserJs 
-    return browserClass.DCE_DIR
-}
-
 /** create npm project */
 def createNpmProject(def compilation) {
     def result = null
@@ -667,6 +197,47 @@ def createNpmProject(def compilation) {
         compilation)
     return result
 }
+
+/**
+ * kotlin compiler classpath
+ */
+def getCompilerClasspath() {
+    def result = project.objects.fileCollection()
+    def compilerClassConfigName = 'kotlinCompilerClasspath'
+    result.setFrom(
+        project.configurations.named(compilerClassConfigName))
+    return result 
+}
+
+
+/**
+ * kotlin js path
+ */
+def getKotlinJsPath() {
+    return  rootProject.file('build/js/node_modules/kotlin/kotlin.js')
+}
+
+/**
+ * run javascript deadcode elimination
+ */
+def runJsDce(
+    boolean devMode,
+    def compilation,
+    def dceDir) {
+    def npmProject = createNpmProject(compilation)
+    def destDir = new File(npmProject.dir, dceDir)
+    def source = compilation.compileKotlinTask.outputFile
+    javaexec {
+        main = 'org.jetbrains.kotlin.cli.js.dce.K2JSDce'
+        classpath = compilerClasspath 
+        args '-output-dir', destDir
+        if (devMode) {
+            args '-dev-mode' 
+        }
+        args source, kotlinJsPath
+    } 
+}
+
 
 
 /**
@@ -711,460 +282,46 @@ def getDceOutput(String compilationName, boolean dev) {
         kotlinTask.outputFile.name)
 }
 
-/**
- * get dce output
- */
-def getDceOutput(def compilationName) {
-    return getDceOutput(compilationName, false)
-}
+appSettingsWithoutDefault.each {
+    key, value ->
+    if (value.compile.contains('js')) {
+        def jsCompilation = getJsCompilation(key)
+        tasks.create(
+            "${key.snakeToCamel()}Dce") {
+            dependsOn jsCompilation.compileKotlinTask
 
-/**
- * get dce development output
- */
-def getDceDevOutput(def compilationName) {
-    return getDceOutput(compilationName, true)
-}
-
-
-
-task siteMgrMsgFmt(type: net.oc_soft.MsgFmtTask) {
-    srcDir = new File("${projectDir}/src/site-manager/contents/i18n")
-    dstDir = new File("${projectDir}/src/site-manager/i18n")
-}
-
-buildSite.dependsOn siteMgrMsgFmt
-
-def getRsyncSiteSetting() {
-    def settingPath = new File(projectDir, 'rsync-site.json')
-    return new groovy.json.JsonSlurper().parseText(settingPath.text)
-}
-
-
-task rsyncWebSite {
-
-    def timeStamp = new File(buildDir, 'rsync-time-stamp.txt')
-    def sgenSetting = readSgenSetting()
-    def outputRoot = sgenSetting['output-root']
-
-    doLast {
-        exec {
-            def setting = getRsyncSiteSetting() 
-     
-            if (setting['port']) {
-                args "--port=${setting['port']}"
-            }
-            args '-r', '--exclude-from=rsync-ignore.txt', 
-                "${outputRoot}/", setting['remote']
-            executable = 'rsync'
-
-            println commandLine
-            
-            timeStamp.text = new Date().format('yyyyMMddHHmmss') 
-        }
-    }
-}
-
-rsyncWebSite.dependsOn buildSite
-
-
-task jvmJpAddrConvJar(type: Jar) {
-    def comp = kotlin.targets.jvm.compilations['jpAddrConv']
-    from comp.output.allOutputs
-    archiveFileName = "${project.name}-${comp.compilationName}.jar"
-}
-
-jvmJpAddrConvJar.dependsOn jvmJpAddrConvClasses
-
-task copyDependsJpAddrConvJar {
-    doLast {
-        def classes = getRuntimeDependencyFiles('jpAddrConv')
-        classes += jvmJpAddrConvJar.archivePath
-
-        copy {
-            from classes
-            into jarJpAddrConvApp.output
-        }
-    }
-}
-
-copyDependsJpAddrConvJar.dependsOn jvmJpAddrConvJar
-
-task createJpAddrConvAppScript {
-
-    doLast {
-        def classes = getRuntimeDependencyFiles('jpAddrConv')
-        classes += jvmJpAddrConvJar.archivePath
-
-         
-        def classPathArray = []
-        classes.each {
-            classPathArray.add("\${JAR_ROOT_DIR}/${it.name}")
-        }
-    
-        def classPaths = classPathArray.join(':') 
-        def binding = [
-            classpaths: "-cp \"${classPaths}\"",
-            mainclass: 'net.oc_soft.App'
-        ]
-        def runJarSrc0 = new File("${projectDir}/tools/run-jar-0.sh")
-        def runJarSrc1 = new File("${projectDir}/tools/run-jar-1.sh")
-        def tmp = new groovy.text.StreamingTemplateEngine()
-        tmp = tmp.createTemplate(runJarSrc1)
-        def jarSh = runJarSrc0.text + tmp.make(binding)
-
-
-        def shPath = new File(
-            "${jarJpAddrConvApp.output}/${jarJpAddrConvApp.exeSh}")
-        shPath.text = jarSh
-        shPath.executable = true
-
-    }
-}
-
-
-createJpAddrConvAppScript.dependsOn copyDependsJpAddrConvJar
-
-
-task createPot {
-
-    description = 'create internatinalization source file'
-
-
-    def srcDir = file("src/site")
-    inputs.dir srcDir
-
-    def outputFile = file("src/i18n/nbs.pot")
-    outputs.file outputFile
-    
-    doLast {
-        def inputs = fileTree(srcDir).filter { it.isFile() }.files 
-       
-        
-        exec {
-            args '-L', 'php'
-            args '-o', outputFile
-            args inputs
-            executable = 'xgettext'
-        }
-    }
-}
-
-task updatePo {
-
-    def langCodes = ['ja']
-
-    def potFile = file("src/i18n/nbs.pot")  
-    // inputs.files potFile
-
-    def poFiles = langCodes.collect { file("src/i18n/nbs-${it}.po") }
-     
-    poFiles.each {
-        def poFile = it
-        doLast {
-            exec {
-                args '-U'
-                args poFile, potFile
-                executable = 'msgmerge'
+            jsBrowserProductionWebpack.dependsOn it 
+            doLast {
+                runJsDce(false, jsCompilation, dceDir)
             }
         }
-    }
-}
+        jsBrowserProductionWebpack.inputs.files getDceOutput(
+            key.snakeToCamel(), false)
 
-updatePo.dependsOn createPot
-
-
-/**
- * get i18n source files
- */
-def getI18nSources() {
-    def inputFiles = fileTree("src/i18n").filter {
-        def res = it.isFile() 
-        if (res) {
-            def extPos = it.name.lastIndexOf(".")  
-            if (extPos > 0) {
-                res = it.name.substring(extPos + 1) == "po"
+        tasks.create(
+            "${key.snakeToCamel()}DceDev") {
+            dependsOn jsCompilation.compileKotlinTask
+            jsBrowserDevelopmentWebpack.dependsOn it
+            doLast {
+                runJsDce(true, jsCompilation, dceDevDir)
             }
         }
-        res
-    }.files
-    return inputFiles
-}
-
-/**
- * get mo file input and output pair
- */
-def getMoFileParams() {
-    def outputDir = "${buildDir}/web-site/wp-content/languages/themes"
-    def inputFiles = getI18nSources()
-    def result = []
-    inputFiles.each {
-        def inputFile = it
-        def nameWithoutExt 
-        def extPos = inputFile.name.lastIndexOf(".")  
-        if (extPos > 0) {
-            nameWithoutExt = inputFile.name.substring(0, extPos)
-        } else {
-            nameWithoutExt = inputFile.name
-        }
-        def outputFile = new File(outputDir, "${nameWithoutExt}.mo")
-        result <<= [inputFile, outputFile]
-    }
-    return result
-}
-
-
-task createMo {
-    description = 'create mo file'
-
-    def inputAndOutputs = moFileParams
-    def potFile = file("src/i18n/nbs.pot")  
-    def outputDir = "${buildDir}/web-site/wp-content/languages/themes"
-
-
-    inputAndOutputs.each { 
-        inputs.files it[0] 
-    }
-    inputAndOutputs.each {
-        outputs.files it[1] 
-    }
-
-    inputAndOutputs.each {
-        def inputFile = it[0]
-        def outputFile = it[1]
-        doLast {     
-            exec {
-                args '-o', outputFile
-                args inputFile 
-                executable = 'msgfmt'
-            }
-        }
-    }
-    doLast {
-        copy {
-            from potFile
-            into outputDir
-        }
-    }
-
-    
-}
-
-createMo.dependsOn updatePo
-
-
-task copyWpToWebSite {
-
-    doLast {
-        def outputRoot = "${buildDir}/web-site"
-
-        copy {
-            from "wordpress"
-            into outputRoot 
-            include "**"
-        }
+        jsBrowserDevelopmentWebpack.inputs.files getDceOutput(
+            key.snakeToCamel(), true)
     }
 }
 
-createMo.dependsOn copyWpToWebSite
+tasks.getByPath('jsBrowserProductionWebpack').mode = 'production'
 
-buildSite.dependsOn copyWpToWebSite
-buildSite.dependsOn copyWpToWebSite
-
-/**
- * copy plugins into web site image
- */
-task copyPluginsToWebSite {
-
-    doLast {
-        def outputRoot = "${buildDir}/web-site/wp-content/plugins"
-
-        def pluginParams = [
-            [
-                from: "oc-pdf-viewer/build/oc-pdf-viewer",
-                into: "${outputRoot}/oc-pdf-viewer"
-            ],
-            [
-                from: "oc-send-message/build/oc-send-message",
-                into: "${outputRoot}/oc-send-message"
-            ],
-            [
-                from: "oc-jp-addr-assistant/build/oc-jp-addr-assistant",
-                into: "${outputRoot}/oc-jp-addr-assistant"
-            ],
-            [
-                from: "nbs-recruit-posts/build/nbs-recruit-posts",
-                into: "${outputRoot}/nbs-recruit-posts"
-            ],
-            [
-                from: "oc-smart-table/build/oc-smart-table",
-                into: "${outputRoot}/oc-smart-table"
-            ]
-        ]
-        pluginParams.each { 
-            def src = it.from
-            def dest = it.into
-            copy {
-                from src
-                into dest
-                include "**"
+if (hasProperty("productionCompile")) {
+    kotlin.js {
+        compilations.each {
+            it.kotlinOptions {
+                sourceMap = false
             }
         }
     }
 }
 
 
-
-
-copyPluginsToWebSite.dependsOn ':oc-pdf-viewer:buildSiteImage'
-copyPluginsToWebSite.dependsOn ':nbs-recruit-posts:buildSiteImage'
-copyPluginsToWebSite.dependsOn ':oc-send-message:buildSiteImage'
-copyPluginsToWebSite.dependsOn ':oc-jp-addr-assistant:buildSiteImage'
-copyPluginsToWebSite.dependsOn ':oc-smart-table:buildSiteImage'
-copyPluginsToWebSite.dependsOn copyWpToWebSite
-buildSite.dependsOn copyPluginsToWebSite
-
-/**
- * copy plugin language into web site image
- */
-task copyPluginLanguagesToWebSite {
-
-    doLast {
-        def outputRoot = "${buildDir}/web-site/wp-content/languages/plugins"
-
-        def pluginParams = [
-            [
-                from: "oc-pdf-viewer/build/languages",
-                into: "${outputRoot}"
-            ],
-            [
-                from: "oc-send-message/build/languages/plugins",
-                into: "${outputRoot}"
-            ],
-            [
-                from: "nbs-recruit-posts/build/languages/plugins",
-                into: "${outputRoot}"
-            ]
-        ]
-        pluginParams.each { 
-            def src = it.from
-            def dest = it.into
-            copy {
-                from src
-                into dest
-                include "**"
-            }
-        }
-    }
-}
-
-copyPluginLanguagesToWebSite.dependsOn ':oc-pdf-viewer:buildSiteImage'
-copyPluginLanguagesToWebSite.dependsOn ':oc-send-message:buildSiteImage'
-copyPluginLanguagesToWebSite.dependsOn ':nbs-recruit-posts:buildSiteImage'
-copyPluginLanguagesToWebSite.dependsOn copyWpToWebSite
-buildSite.dependsOn copyPluginLanguagesToWebSite
-
-task archiveTheme(type: org.gradle.api.tasks.bundling.Zip) {
-
-    description = 'archive theme'
-    def inputDir = "${buildDir}/web-site/wp-content/themes/nbs"
-
-    def outputDir = new File(buildDir, "wordpress/themes/")
-
-    archiveBaseName = "nbs"
-    destinationDir = outputDir 
-    into "nbs"
-    from inputDir
-}
-
-
-archiveTheme.dependsOn buildSite
-
-task createModulesForUpload {
-    description = 'create some modules for upload'
-    def pluginNames = project.wordpressPlugins
-    doLast {
-        pluginNames.each {  
-            def pluginName = it
-            def childBuildDir = childProjects[pluginName].buildDir
-
-            copy {
-                from childBuildDir
-                include 'wordpress/plugins/**/*'
-                into buildDir
-            }
-
-            copy {
-                from "${childBuildDir}/wordpress/languages"
-                include '**/*'
-                into "${buildDir}/wordpress/languages/"
-            }
-        }
-    }
-}
-
-
-ext.wordpressPlugins.each {
-    createModulesForUpload.dependsOn ":${it}:archivePlugin"
-}
-
-/**
- * create language archive module
- */
-task createThemeLanguageModule(
-    type: org.gradle.api.tasks.bundling.Zip) {
-    description = 'create theme language archive module'
-    def inputAndOutputs = moFileParams
-    def potFile = file("src/i18n/nbs.pot")  
-    
-    from "${buildDir}/web-site/wp-content/languages/themes"
-    include potFile.name
-    inputAndOutputs.each {
-        include it[1].name
-    }
-    into "languages/themes"
-    archiveBaseName = "nbs"
-    destinationDir = new File(buildDir, "wordpress/languages/themes")
-}
-
-createThemeLanguageModule.dependsOn buildSite
-
-createModulesForUpload.dependsOn archiveTheme
-
-createModulesForUpload.dependsOn createThemeLanguageModule
-
-
-
-
-
-task generateJpAddrResource {
-
-    def exePath = "${jarJpAddrConvApp.output}/${jarJpAddrConvApp.exeSh}"
-    def sgenSetting = readSgenSetting()
-    def outdir = "${sgenSetting['output-root']}/address-jp"
-    jpAddrSetting.options.each {
-        outputs.files new File(outdir, it.output)
-    }
-    inputs.files new File(projectDir, jpAddrSetting.addressSource)
-
-    doLast {
-        mkdir outdir
-        jpAddrSetting.options.each {
-            def outputStream = new FileOutputStream(
-                "${outdir}/${it.output}")
-            def convopt = it.convopt
-            exec {
-                workingDir projectDir
-                executable = exePath
-                args "-c", convopt
-                args "-f", "${projectDir}/${jpAddrSetting.addressSource}"
-                standardOutput outputStream
-            } 
-            outputStream.close()
-        } 
-    }
-}
-
-generateJpAddrResource.dependsOn createJpAddrConvAppScript
-
-// buildSite.dependsOn generateJpAddrResource
 // vi: se ts=4 sw=4 et:
