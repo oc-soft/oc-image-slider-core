@@ -9,6 +9,7 @@ import kotlin.collections.MutableList
 import kotlin.collections.ArrayList
 
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.url.URL
 import org.w3c.dom.url.URLSearchParams
 
 /**
@@ -111,8 +112,7 @@ class BackgroundStyle(
     /**
      * start load to setup element background loader
      */
-    fun startSyncSetting(): Promise<Unit> {
-        val url = Site.requestUrl
+    fun startSyncSetting(url: URL): Promise<Unit> {
         val searchParams = url.searchParams
         searchParams.append("action", imageLayoutQuery) 
         getQuerysFromUrl().forEach {

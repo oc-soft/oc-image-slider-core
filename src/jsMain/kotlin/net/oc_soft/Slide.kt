@@ -21,7 +21,8 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.Image
 import org.w3c.dom.get
 import org.w3c.dom.set
-import org.w3c.dom.animate
+
+import org.w3c.dom.url.URL
 
 import kotlin.text.toIntOrNull
 import kotlin.text.toBoolean
@@ -84,8 +85,7 @@ class Slide(
     /**
      * sync parameter with site
      */
-    fun startSyncSetting(): Promise<Unit> {
-        val url = Site.requestUrl
+    fun startSyncSetting(url: URL): Promise<Unit> {
         val searchParams = url.searchParams
         searchParams.append("action", imageParamsQuery)
         return window.fetch(url).then({
