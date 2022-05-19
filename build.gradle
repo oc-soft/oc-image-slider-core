@@ -1,7 +1,7 @@
 
 
 plugins {
-    id 'org.jetbrains.kotlin.multiplatform'
+    id 'org.jetbrains.kotlin.multiplatform' version '1.6.21'
 }
 
 repositories {
@@ -100,22 +100,16 @@ kotlin {
 
         browser {
             webpackTask {
-                output.libraryTarget = webpackSetting.libraryTarget
             }
         }
     }
 
     sourceSets {
         
-        jsCommon {
+        jsMain {
             dependencies {
                 implementation kotlin('stdlib-js')
-                compileOnly npm('@floating-ui/dom', '>=0.2.0')
             }
-        }
-
-        jsMain {
-            dependsOn jsCommon
         }
     }
 }
