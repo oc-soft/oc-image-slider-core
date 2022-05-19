@@ -1,8 +1,0 @@
-<?php
-$domain_dir = implode('/', [$root_dir, 'i18n']);
-$res = bindtextdomain('db-status', $domain_dir);
-$res = textdomain('db-status');
-$res = bind_textdomain_codeset('db-status', 'UTF-8');
-
-// vi: se ts=4 sw=4 et:
-?>
