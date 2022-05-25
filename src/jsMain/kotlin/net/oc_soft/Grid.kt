@@ -12,9 +12,9 @@ class Grid {
     companion object {
 
         /**
-         * create separaged grid
+         * create separated grid
          */
-        fun genrate(
+        fun generate(
             bound: DoubleArray,
             rowCount: Int,
             colCount: Int): Array<Array<DoubleArray>> {

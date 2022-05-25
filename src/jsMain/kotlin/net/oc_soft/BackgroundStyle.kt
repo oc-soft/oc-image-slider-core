@@ -113,16 +113,16 @@ class BackgroundStyle(
      * start load to setup element background loader
      */
     fun startSyncSetting(url: URL): Promise<Unit> {
+        
         val searchParams = url.searchParams
         searchParams.append("action", imageLayoutQuery) 
         getQuerysFromUrl().forEach {
             searchParams.append(it.first, it.second)
         }
-        
-
         return window.fetch(url).then({
             it.json()
         }).then({
+            @Suppress("UNCHECKED_CAST")
             loadSetting(it as Json)
         })
     }
