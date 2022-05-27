@@ -122,9 +122,11 @@ class BackgroundStyle(
         return window.fetch(url).then({
             it.json()
         }).then({
-            @Suppress("UNCHECKED_CAST")
-            loadSetting(it as Json)
-        })
+            
+            loadSetting(
+                @Suppress("UNCHECKED_CAST")
+                it as Json)
+            })
     }
 
     /**

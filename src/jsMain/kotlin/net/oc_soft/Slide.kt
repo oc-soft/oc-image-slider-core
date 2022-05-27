@@ -293,6 +293,7 @@ class Slide(
     /**
      * handle animation event
      */
+    @Suppress("UNUSED_PARAMETER")
     fun handleAnimationEvent(
         event: Event,
         imageSources: Array<Array<String>>,
@@ -311,6 +312,7 @@ class Slide(
     /**
      * routine be ran when a animation finished.
      */
+    @Suppress("UNUSED_PARAMETER")
     fun onFinishedAnimation(
         imageSources: Array<Json>,
         imageIndex: Int) {

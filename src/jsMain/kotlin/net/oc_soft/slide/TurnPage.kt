@@ -215,7 +215,30 @@ class TurnPage {
      */
     val direction: Direction get() = getContainerDirection(foldingSpace!!) 
 
+    /**
+     * folding page container
+     */
+    val frontFoldingElement: HTMLElement get() = 
+        getFrontFoldingElement(foldingSpace!!)!!
 
+
+    /**
+     * folding page container
+     */
+    val backFoldingElement: HTMLElement get() = 
+        getBackFoldingElement(foldingSpace!!)!!
+
+    /**
+     * frontFoldingShadeElement
+     */
+    val frontFoldingShadeElement: HTMLElement get() =
+        getFrontFoldingShadeContainer()
+
+    /**
+     * back page shade container
+     */
+    val backShadeElement: HTMLElement get() =
+        getBackShadeElement(foldingSpace!!)!!
 
     /**
      * folding element size
@@ -249,6 +272,16 @@ class TurnPage {
                 doubleArrayOf(spaceSize[0], spaceSize[1]),
                 doubleArrayOf(0.0, spaceSize[1]))
         }
+
+
+    /**
+     * get page content
+     */
+    fun getPageContent(pageIndex: Int): HTMLElement? {
+        return if (0 <= pageIndex && pageIndex < pageCount) {
+            contents[pageIndex]
+        } else null  
+    }
 
     /**
      * select base line
@@ -431,14 +464,30 @@ class TurnPage {
         container: HTMLElement,
         direction: Direction) {
 
-        val pages = createSpreadPageElements(container, direction)
-        pages.forEach {
+
+        val pageParams = arrayOf(
+            arrayOf(0, "back"), 
+            arrayOf(5, "front"))
+
+        pageParams.forEach {
+            // val zIndex = it[0].toString() 
+            val className = it[1] as String
+            val pages = createSpreadPageElements(container, direction)
+            pages.forEach {
+                // it.style.zIndex = zIndex
+                it.classList.add(className)
+                container.append(it)
+            }
+        }
+       
+
+        createFoldingElements(container, direction).forEach {
             container.append(it)
         }
-        val foldingElements = createFoldingElements(container, direction)
-        foldingElements.forEach {
-            container.append(it)
-        }
+
+        container.append(createShadeContainerElement(container, direction))
+
+
         container.dataset["direction"] = direction.toString()
         container.style.overflowX = "hidden"
         container.style.overflowY = "hidden"
@@ -454,23 +503,34 @@ class TurnPage {
 
         val pageSize = calcPageSize(container, direction)
 
-        val pageOffset = if (direction == Direction.HORIZONTAL) {
+        val pageParams = if (direction == Direction.HORIZONTAL) {
             arrayOf(
-                intArrayOf(0, pageSize[0]),
-                intArrayOf(0, 0))
+                arrayOf(
+                    "first",
+                    doubleArrayOf(0.0, 0.0)),
+                arrayOf(
+                    "second",
+                    doubleArrayOf(pageSize[0], 0.0)))
         } else {
             arrayOf(
-                intArrayOf(0, 0),
-                intArrayOf(0, pageSize[1]))
+                arrayOf(
+                    "first",
+                    doubleArrayOf(0.0, 0.0)),
+                arrayOf(
+                    "second",
+                    doubleArrayOf(0.0, pageSize[1])))
         }
          
-        return Array<HTMLElement>(pageOffset.size) {
+        return Array<HTMLElement>(pageParams.size) {
+            val pageClass = pageParams[it][0] as String
+            val pageOffset = pageParams[it][1] as DoubleArray
             val elem = document.createElement("div") as HTMLElement
             setupFoldingElementStyle(elem)
+            elem.classList.add(pageClass)
             elem.style.width = "${pageSize[0]}px"
             elem.style.height = "${pageSize[1]}px"
             elem.style.transform = 
-                "translate(${pageOffset[0][it]}px, ${pageOffset[1][it]}px)"
+                "translate(${pageOffset[0]}px, ${pageOffset[1]}px)"
             elem
         }
     }
@@ -481,7 +541,7 @@ class TurnPage {
      */
     fun createFoldingElements(
         container: HTMLElement,
-        direction :Direction): Array<HTMLElement> {
+        direction: Direction): Array<HTMLElement> {
 
 
         val pageSize = calcPageSize(container, direction)
@@ -490,28 +550,59 @@ class TurnPage {
             container, direction)
 
 
-        val pageOffset =  calcInitialTopMaskPositions(
-            container, direction, maskSize) 
-
-        return Array<HTMLElement>(pageOffset.size) {
+        val classNames = arrayOf("back", "front")
+        
+        return Array<HTMLElement>(classNames.size) {
+            val additionalClassName = classNames[it]
             val elem = document.createElement("div") as HTMLElement
             setupFoldingElementStyle(elem)
 
             val pageContainer = document.createElement("div") as HTMLElement
 
+            pageContainer.classList.add("content")
             setupFoldingElementStyle(pageContainer)
 
             pageContainer.style.width = "${pageSize[0]}px"
             pageContainer.style.height = "${pageSize[1]}px"
 
             elem.append(pageContainer)
-            // shadow gradient container
+
+            val shadeContainer = document.createElement("div") as HTMLElement
+            shadeContainer.classList.add("shade")
+            setupFoldingElementStyle(shadeContainer)
+            shadeContainer.style.width = "${pageSize[0]}px"
+            shadeContainer.style.height = "${pageSize[1]}px"
+
+            elem.append(shadeContainer)
+
+
+            elem.classList.add("folding")
+            elem.classList.add("$additionalClassName")
+
+                // shadow gradient container
             elem.style.width = "${maskSize}px"
             elem.style.height = "${maskSize}px"
-            elem.style.transform =
-                "translate(${pageOffset[0][it]}px, ${pageOffset[1][it]}px)" 
+            elem.style.display = "none"
             elem
         }
+    }
+
+    /**
+     * create shade container element
+     */
+    fun createShadeContainerElement(
+        container: HTMLElement,
+        direction: Direction): HTMLElement {
+        val result = document.createElement("div") as HTMLElement
+
+        val pageSize = calcPageSize(container, direction)
+
+        setupFoldingElementStyle(result)
+        result.classList.add("shade-container")
+        result.style.width = "${pageSize[0]}px"
+        result.style.height = "${pageSize[1]}px"
+        result.style.display = "none"
+        return result
     }
 
     /**
@@ -607,7 +698,7 @@ class TurnPage {
     /**
      * calculate page size
      */
-    fun getPageSize(): IntArray? {
+    fun getPageSize(): DoubleArray? {
         return foldingSpace?.let {
             calcPageSize(it, getContainerDirection(it))
         } 
@@ -619,17 +710,17 @@ class TurnPage {
      */
     fun calcPageSize(
         container: HTMLElement,
-        direction: Direction): IntArray {
+        direction: Direction): DoubleArray {
         val bounds = container.getBoundingClientRect()
         
         return if (direction == Direction.HORIZONTAL) { 
-            intArrayOf(
-                kotlin.math.round(bounds.width / 2.0).toInt(),
-                kotlin.math.round(bounds.height).toInt()) 
+            doubleArrayOf(
+                bounds.width / 2.0,
+                bounds.height) 
         } else {
-            intArrayOf(
-                kotlin.math.round(bounds.width).toInt(),
-                kotlin.math.round(bounds.height / 2.0).toInt())
+            doubleArrayOf(
+                bounds.width,
+                bounds.height / 2.0)
         }
     }
 
@@ -637,59 +728,77 @@ class TurnPage {
      * synchronize view with current page index
      */
     fun syncViewWithPageIndex() {
-        if (this.pageIndex >= 0 && this.pageIndex < pageCount - 1) {
-            foldingSpace?.let {
-                if (pageIndex > 0) {
-                    setFoldingPageContent(
-                        it, 0, contents[pageIndex - 1])
-                }
-                setPageContent(it,
-                    0, contents[pageIndex]) 
-                setPageContent(it,
-                    1, contents[pageIndex + 1]) 
-                if (pageIndex + 2 <  pageCount) {
-                    setFoldingPageContent(
-                        it, 1, contents[pageIndex + 2])
-                }
-            }
+        foldingSpace?.let {
+            
+            val pageIndex = this.pageIndex
+            
+            setBackPageContent(it,
+                0, getPageContent(pageIndex - 2))
+            setFrontPageContent(it,
+                0, getPageContent(pageIndex)) 
+            setFrontPageContent(it,
+                1, getPageContent(pageIndex + 1)) 
+            setBackPageContent(it,
+                1, getPageContent(pageIndex + 3))
+            
         }
     }
 
 
     /**
-     * get page container
+     * index to class name
      */
-    fun getPageContainer(
-        container: HTMLElement,
-        index: Int): HTMLElement? {
-
-        return if (container.childElementCount > 2) {
-            if (0 <= index && index < 2) {
-                container.children[index] as HTMLElement
-            } else null
-        } else null
+    fun Int.toClassName(): String {
+        return if (this % 2 == 0) {
+            "first"
+        } else {
+            "second"
+        }
     }
 
     /**
-     * get top mask element
+     * get front page container
      */
-    fun getFoldingElement(
-        index: Int): HTMLElement {
-        return getFoldingElement(foldingSpace!!, index)!!
+    fun getFrontPageContainer(
+        container: HTMLElement,
+        index: Int): HTMLElement? {
+        val query = ".front.${index.toClassName()}"
+        return container.querySelector(query)?.let {
+            it as HTMLElement
+        }
+    }
+
+    /**
+     * get back page container
+     */
+    fun getBackPageContainer(
+        container: HTMLElement,
+        index: Int): HTMLElement? {
+        val query = ".back.${index.toClassName()}"
+        return container.querySelector(query)?.let {
+            it as HTMLElement
+        }
+    }
+
+
+    /**
+     * folding page container
+     */
+    fun getFrontFoldingElement(
+        container: HTMLElement): HTMLElement? {
+        return container.querySelector(".folding.front")?.let {
+            it as HTMLElement
+        }
     }
 
     /**
      * folding page container
      */
-    fun getFoldingElement(
-        container: HTMLElement,
-        index: Int): HTMLElement? {
-        
-        return if (container.childElementCount > 3) {
-            if (0 <= index  && index < 2) {
-                container.children[2 + index] as HTMLElement
-            } else null
-        } else null
+    fun getBackFoldingElement(
+        container: HTMLElement): HTMLElement? {
+        return container.querySelector(".folding.back")?.let {
+            it as HTMLElement
+        }
     }
 
 
@@ -698,56 +807,190 @@ class TurnPage {
     /**
      * folding page container
      */
-    fun getPageContainerFromFoldingElement(
-        container: HTMLElement,
-        index: Int): HTMLElement? {
+    fun getPageContainerFromFrontFoldingElement(
+        container: HTMLElement): HTMLElement? {
 
-        return getFoldingElement(container, index)?.let {
-            if (it.childElementCount > 0) {
-                it.children[0] as HTMLElement
-            } else null
+        return getFrontFoldingElement(container)?.let {
+            it.querySelector(".content")?.let {
+                it as HTMLElement
+            }
         }
+    }
+
+    /**
+     * folding page container
+     */
+    fun getPageContainerFromBackFoldingElement(
+        container: HTMLElement): HTMLElement? {
+
+        return getBackFoldingElement(container)?.let {
+            it.querySelector(".content")?.let { 
+                it as HTMLElement
+            }
+        }
+    }
+
+    /**
+     * folding shade container
+     */
+    fun getShadeContainerFromFrontFoldingElement(
+        container: HTMLElement): HTMLElement? {
+
+        return getFrontFoldingElement(container)?.let {
+            it.querySelector(".shade")?.let {
+                it as HTMLElement
+            }
+        }
+    }
+
+    /**
+     * folding page container
+     */
+    fun getShadeContainerFromBackFoldingElement(
+        container: HTMLElement): HTMLElement? {
+
+        return getBackFoldingElement(container)?.let {
+            it.querySelector(".shade")?.let { 
+                it as HTMLElement
+            }
+        }
+    }
+
+
+    /**
+     * get page contaner in folding element
+     */
+    fun getFrontFoldingPageContainer(): HTMLElement {
+        return getPageContainerFromFrontFoldingElement(
+            foldingSpace!!)!!
     }
 
     /**
      * get page contaner in folding element
      */
-    fun getFoldingPageContainer(
-        index: Int): HTMLElement {
-        return getPageContainerFromFoldingElement(
-            foldingSpace!!, index)!!
+    fun getBackFoldingPageContainer(): HTMLElement {
+        return getPageContainerFromBackFoldingElement(
+            foldingSpace!!)!!
     }
 
     /**
-     * set folding page content
+     * get shade container in folding element
      */
-    fun setFoldingPageContent(
-        container: HTMLElement,
-        index: Int,
-        content: HTMLElement) {
+    fun getFrontFoldingShadeContainer(): HTMLElement {
+        return getShadeContainerFromFrontFoldingElement(
+            foldingSpace!!)!!
+    }
 
-        getPageContainerFromFoldingElement(container, index)?.let {
-            while (it.childElementCount > 0) {
-                it.lastElementChild?.remove()
+    /**
+     * get shade container in folding element
+     */
+    fun getBackFoldingShadeContainer(): HTMLElement {
+        return getShadeContainerFromBackFoldingElement(
+            foldingSpace!!)!!
+    }
+
+    
+    /**
+     * back shade element
+     */
+    fun getBackShadeElement(container: HTMLElement): HTMLElement? {
+        return container.querySelector(".shade-container")?.let {
+            it as HTMLElement
+        }
+    }
+
+
+    /**
+     * set front folding page content
+     */
+    fun setFrontFoldingPageContent(
+        content: HTMLElement?) {
+        setFrontFoldingPageContent(foldingSpace!!, content)
+    }
+
+
+    /**
+     * set front folding page content
+     */
+    fun setFrontFoldingPageContent(
+        container: HTMLElement,
+        content: HTMLElement?) {
+
+        getPageContainerFromFrontFoldingElement(container)?.let {
+            val pageContainer = it
+            while (pageContainer.childElementCount > 0) {
+                pageContainer.lastElementChild?.remove()
             } 
-            it.append(content)
+            content?.let {
+                pageContainer.append(content)
+            }
         }
     }
 
     /**
-     * set page content
+     * set back folding page content
      */
-    fun setPageContent(
+    fun setBackFoldingPageContent(
+        content: HTMLElement?) {
+        setBackFoldingPageContent(foldingSpace!!, content)
+    }
+
+
+    /**
+     * set back folding page content
+     */
+    fun setBackFoldingPageContent(
         container: HTMLElement,
-        index: Int,
-        content: HTMLElement) {
-        getPageContainer(container, index)?.let {
-            while (it.childElementCount > 0) {
-                it.lastElementChild?.remove()
+        content: HTMLElement?) {
+
+        getPageContainerFromBackFoldingElement(container)?.let {
+            val pageContainer = it
+            while (pageContainer.childElementCount > 0) {
+                pageContainer.lastElementChild?.remove()
+            } 
+            content?.let {
+                pageContainer.append(it)
             }
-            it.append(content)
         }
     }
+
+
+    /**
+     * set front page content
+     */
+    fun setFrontPageContent(
+        container: HTMLElement,
+        index: Int,
+        content: HTMLElement?) {
+        getFrontPageContainer(container, index)?.let {
+            val pageContainer = it
+            while (pageContainer.childElementCount > 0) {
+                pageContainer.lastElementChild?.remove()
+            }
+            content?.let {
+                pageContainer.append(it)
+            }
+        }
+    }
+
+    /**
+     * set back page content
+     */
+    fun setBackPageContent(
+        container: HTMLElement,
+        index: Int,
+        content: HTMLElement?) {
+        getBackPageContainer(container, index)?.let {
+            val pageContainer = it
+            while (pageContainer.childElementCount > 0) {
+                pageContainer.lastElementChild?.remove()
+            }
+            content?.let {
+                pageContainer.append(it)
+            }
+        }
+    }
+
 
 
     /**
@@ -763,7 +1006,47 @@ class TurnPage {
         return result
     }
 
-    
+    /**
+     * prepare flipping motion
+     */
+    fun prepareFlipping(
+        motionbaseParam: MotionbaseParam) {
+
+        
+
+        if (motionbaseParam.startIndex == 0) {
+            setBackFoldingPageContent(getPageContent(pageIndex))
+            setFrontFoldingPageContent(getPageContent(pageIndex - 1)) 
+
+        } else {
+            setBackFoldingPageContent(getPageContent(pageIndex + 1))
+            setFrontFoldingPageContent(getPageContent(pageIndex + 2)) 
+        }
+        prepaceBackShadeForFlipping(motionbaseParam)
+
+    }
+
+    /**
+     * prepare back shade for flipping
+     */
+    fun prepaceBackShadeForFlipping(
+        motionbaseParam: MotionbaseParam) {
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+        val backShade = backShadeElement
+
+        val translate = if (direction == Direction.HORIZONTAL) {
+            doubleArrayOf(
+                pageSize[0] * motionbaseParam.startIndex,
+                0.0)
+        } else {
+            doubleArrayOf(
+                0.0,
+                pageSize[1] * motionbaseParam.startIndex)
+        }
+        
+        backShade.style.transform = 
+            "translate(${translate[0]}px, ${translate[1]}px)"
+    }
 
     /**
      * set flipping status at a point
@@ -805,25 +1088,184 @@ class TurnPage {
             Matrix(tx = (fcbLoc[0] - cornerTransed[0]),
                 ty = (fcbLoc[1] - cornerTransed[1])) *
             transform1Rot 
-        val foldingElement = getFoldingElement(
-            motionbaseParam.startIndex)
 
-        val pageContainer = getFoldingPageContainer(
-            motionbaseParam.startIndex)
+        val frontFoldingElement = this.frontFoldingElement
+        val backFoldingElement = this.backFoldingElement
 
-        foldingElement.style.transform = transform1.css
+        frontFoldingElement.style.transform = transform1.css
+        backFoldingElement.style.transform = transform1.css
+
+        val frontPageContainer = getFrontFoldingPageContainer()
+        val backPageContainer = getBackFoldingPageContainer()
+
+        val frontShadeContainer = getFrontFoldingShadeContainer()
+        val backShadeContainer = getBackFoldingShadeContainer()
+
+
+
 
         val pageRt = -fcr 
-        val pageTr = point - fcbLoc
+        val frontPageTr = point - fcbLoc
 
-        updatePageContainerCornerLocation(pageContainer, motionbaseParam)
-        updatePageContainerTransformOrigin(pageContainer, motionbaseParam)
 
-        val rotStr0 = "rotate(${pageRt}rad)"
-        val trsStr  = "translate(${pageTr[0]}px, ${pageTr[1]}px)"
-        val rotStr1 = "rotate(${2 * fcr0}rad)"
-        pageContainer.style.transform = "$rotStr0 $trsStr $rotStr1"
-     }
+        updatePageContainerCornerLocation(
+            frontPageContainer, motionbaseParam)
+        updatePageContainerTransformOrigin(
+            frontPageContainer, motionbaseParam)
+
+        updatePageContainerCornerLocation(
+            backPageContainer, motionbaseParam)
+        updatePageContainerTransformOrigin(
+            backPageContainer, motionbaseParam)
+
+        updatePageContainerCornerLocation(
+            frontShadeContainer, motionbaseParam)
+        updatePageContainerTransformOrigin(
+            frontShadeContainer, motionbaseParam)
+
+        updatePageContainerCornerLocation(
+            backShadeContainer, motionbaseParam)
+        updatePageContainerTransformOrigin(
+            backShadeContainer, motionbaseParam)
+    
+     
+        val fRotStr0 = "rotate(${pageRt}rad)"
+        val fTrsStr  = "translate(${frontPageTr[0]}px, ${frontPageTr[1]}px)"
+        val fRotStr1 = "rotate(${2 * fcr0}rad)"
+ 
+        frontPageContainer.style.transform = "$fRotStr0 $fTrsStr $fRotStr1"
+        frontShadeContainer.style.transform = "$fRotStr0 $fTrsStr $fRotStr1"
+        
+        val backPageTr = baseLine.pointAt(0.5) - fcbLoc
+
+        val bRotStr0 = "rotate(${pageRt}rad)"
+        val bTrsStr  = "translate(${backPageTr[0]}px, ${backPageTr[1]}px)"
+        backPageContainer.style.transform = "$bRotStr0 $bTrsStr"
+        backShadeContainer.style.transform = "$bRotStr0 $bTrsStr"
+
+
+        backFoldingElement.style.display = "block"
+        frontFoldingElement.style.display = "block"
+
+        flippingShade0(point, motionbaseParam, fcr0, fcr, fcbLoc)
+        flippingShade1(point, motionbaseParam, fcr0, fcr, fcbLoc)
+    }
+
+
+    /**
+     * render front flipping shade
+     */
+    fun flippingShade0(
+        point: DoubleArray,
+        motionbaseParam: MotionbaseParam,
+        fcr0: Double,
+        fcr: Double,
+        fcbLoc: DoubleArray) {
+
+        val frontShade = frontFoldingShadeElement
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+        val d = (pageSize[0].pow(2.0) + pageSize[1].pow(2.0)).pow(0.5)
+
+        val hbcr =  calcHeightBaseCenterRotation(motionbaseParam)
+        val coordEnd = kotlin.math.abs(d * kotlin.math.sin(fcr0 + hbcr))
+
+        val baseLine = motionbaseParam.linesParam.baseLine
+        val startPoint = baseLine[motionbaseParam.startIndex]
+        val rel = point - startPoint
+        val shadeEnd = rel.scale(0.5).distance
+
+        val rotOrigin = getRotationOriginCoordinate(motionbaseParam)
+
+        val shadePageCenter = doubleArrayOf(
+            pageSize[0] / 2.0, pageSize[1] / 2.0)
+
+        val shadeStart = kotlin.math.max(shadeEnd - 100.0, 0.0) 
+        val shadeMiddle = (shadeEnd - shadeStart) * 0.8 + shadeStart
+
+        val opacity = calcGradientOpacity(point, motionbaseParam)
+        val opacityMiddle = 0.2 * opacity
+        val opacityEnd = 0.2 * opacity
+        val colors = arrayOf(
+            arrayOf("rgba(0, 0, 0, 0)", "0px"),
+            arrayOf("rgba(0, 0, 0, 0)", "${shadeStart}px"),
+            arrayOf("rgba(0, 0, 0, ${opacityMiddle})", 
+                "${shadeMiddle}px"),
+            arrayOf("rgba(0, 0, 0, ${opacityEnd})", 
+                "${shadeEnd}px"),
+            arrayOf("rgba(0, 0, 0, 0)", "${shadeEnd}px 100%"),
+        )
+        val colorStr = colors.joinToString(
+            transform = {
+                it.joinToString(" ")
+        })
+        val angle = calcFrontShadeRotation(fcr0, motionbaseParam)
+
+        val angleStr = "${angle * 180.0/ kotlin.math.PI}deg"
+        val gradient = "linear-gradient(${angleStr}, $colorStr)"
+        
+        frontShade.style.backgroundImage = gradient
+    
+        frontShade.style.display = "block"
+    }
+
+    /**
+     * render front flipping shade
+     */
+    fun flippingShade1(
+        point: DoubleArray,
+        motionbaseParam: MotionbaseParam,
+        fcr0: Double,
+        fcr: Double,
+        fcbLoc: DoubleArray) {
+
+        val backShade = backShadeElement
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+        val d = (pageSize[0].pow(2.0) + pageSize[1].pow(2.0)).pow(0.5)
+
+        val hbcr =  calcHeightBaseCenterRotation(motionbaseParam)
+        val coordEnd = kotlin.math.abs(d * kotlin.math.sin(fcr0 + hbcr))
+
+        val baseLine = motionbaseParam.linesParam.baseLine
+        val startPoint = baseLine[motionbaseParam.startIndex]
+        val rel = point - startPoint
+        val shadeEnd = rel.scale(0.5).distance
+        val rotOrigin = getRotationOriginCoordinate(motionbaseParam)
+
+        val shadePageCenter = doubleArrayOf(
+            pageSize[0] / 2.0, pageSize[1] / 2.0)
+
+        val opacity = calcGradientOpacity(point, motionbaseParam)
+        val opacityMiddle = 0.3 * opacity
+        val opacityEnd = 0.3 * opacity
+
+        val shadeStart = shadeEnd * 0.8 
+        val shadeMiddle = shadeEnd
+
+ 
+        val colors = arrayOf(
+            arrayOf("rgba(0, 0, 0, 0)", "0px"),
+            arrayOf("rgba(0, 0, 0, 0)",
+                "${shadeStart}px"),
+            arrayOf("rgba(0, 0, 0, ${opacityMiddle})", 
+                "${shadeMiddle}px"),
+            arrayOf("rgba(0, 0, 0, ${opacityEnd})", 
+                "${shadeEnd}px"),
+            arrayOf("rgba(0, 0, 0, 0)", "${shadeEnd}px 100%"),
+        )
+        val colorStr = colors.joinToString(
+            transform = {
+                it.joinToString(" ")
+        })
+        val angle = calcBackShadeRotation(fcr0, motionbaseParam)
+
+        val gradient = "linear-gradient(${angle}rad, $colorStr)"
+        
+        backShade.style.backgroundImage = gradient
+    
+        backShade.style.display = "block"
+    }
+
+
 
     /**
      * update page container corner location
@@ -832,11 +1274,18 @@ class TurnPage {
         pageContainer: HTMLElement,
         motionbaseParam: MotionbaseParam) {
 
+        pageContainer.style.removeProperty("left")
+        pageContainer.style.removeProperty("top")
+        pageContainer.style.removeProperty("right")
+        pageContainer.style.removeProperty("bottom")
+                     
+
         if (direction == Direction.HORIZONTAL) {
             if (motionbaseParam.linesParam.index == 0) {
                 if (motionbaseParam.startIndex == 0) {
                     pageContainer.style.right = "0px"
                     pageContainer.style.top = "0px"
+                    
                 } else {
                     pageContainer.style.left = "0px"
                     pageContainer.style.top = "0px"
@@ -870,7 +1319,6 @@ class TurnPage {
             }
         }
     }
-
     /**
      * update page container transform origin
      */
@@ -905,6 +1353,281 @@ class TurnPage {
                 } else {
                     pageContainer.style.transformOrigin = "top right"
                 }
+            }
+        }
+    }
+
+    /**
+     * rotation origin coordinate
+     */
+    fun getRotationOriginCoordinate(
+        motionbaseParam: MotionbaseParam): DoubleArray {
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+
+        return if (direction == Direction.HORIZONTAL) {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    doubleArrayOf(pageSize[0], 0.0)
+                } else {
+                    doubleArrayOf(0.0, 0.0)
+                }
+            }  else {
+                if (motionbaseParam.startIndex == 0) {
+                    pageSize
+                } else {
+                    doubleArrayOf(0.0, pageSize[1])
+                }  
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    doubleArrayOf(0.0, pageSize[1])
+                } else {
+                    pageSize
+                }
+            }  else {
+                if (motionbaseParam.startIndex == 0) {
+                    doubleArrayOf(0.0, 0.0)
+                } else {
+                    doubleArrayOf(pageSize[0], 0.0)
+                }  
+            }
+        } 
+    }
+
+    /**
+     * calculate height base center rotation
+     */
+    fun calcHeightBaseCenterRotation(
+        motionbaseParam: MotionbaseParam): Double {
+        
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+        val rot = kotlin.math.atan2(pageSize[0], pageSize[1])
+
+        return if (direction == Direction.HORIZONTAL) {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    rot 
+                } else {
+                    -rot
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    -rot
+                } else {
+                    rot
+                } 
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    rot 
+                } else {
+                    -rot
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    -rot 
+                } else {
+                    rot
+                }
+            }
+        }
+    }
+
+
+    /**
+     * calculate shade gradient opacity
+     */
+    fun calcGradientOpacity(
+        point: DoubleArray,
+        motionbaseParam: MotionbaseParam): Double {
+        val pt = point - 
+            motionbaseParam.linesParam.baseLine[motionbaseParam.endIndex]
+        
+        val pageSize = calcPageSize(foldingSpace!!, direction)
+       
+        val op0 = if (direction == Direction.HORIZONTAL) { 
+            pt.distance / pageSize[0]
+        } else {
+            pt.distance / pageSize[1]
+        }
+
+        return kotlin.math.min(op0, 1.0)
+    }
+
+    
+    /**
+     * calculate front shade rotation
+     */
+
+    fun calcFrontShadeRotation(
+        foldingCornerRotation: Double,
+        motionbaseParam: MotionbaseParam): Double {
+        val baseAngle = getLinearGradientRotationBaseFront(motionbaseParam)
+
+        return calcFrontShadeFcr(
+            foldingCornerRotation, motionbaseParam) + baseAngle
+    }
+ 
+    /**
+     * calculate front folding corner rotation 
+     */
+    fun calcFrontShadeFcr(
+        foldingCornerRotation: Double,
+        motionbaseParam: MotionbaseParam): Double {
+        return if (direction == Direction.HORIZONTAL) {
+           if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    - foldingCornerRotation 
+                } else {
+                    - foldingCornerRotation 
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    - foldingCornerRotation 
+                } else {
+                    - foldingCornerRotation
+                } 
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation
+                } else {
+                    foldingCornerRotation 
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation 
+                } else {
+                    foldingCornerRotation 
+                } 
+            }
+        }
+    }
+
+    /**
+     * calculate back shade rotation
+     */
+
+    fun calcBackShadeRotation(
+        foldingCornerRotation: Double,
+        motionbaseParam: MotionbaseParam): Double {
+        val baseAngle = getLinearGradientRotationBaseBack(motionbaseParam)
+
+        return calcBackShadeFcr(
+            foldingCornerRotation, motionbaseParam) + baseAngle
+    }
+ 
+    /**
+     * calculate back shade folding corner rotation
+     */
+    fun calcBackShadeFcr(
+        foldingCornerRotation: Double,
+        motionbaseParam: MotionbaseParam): Double {
+        return if (direction == Direction.HORIZONTAL) {
+           if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation 
+                } else {
+                    foldingCornerRotation 
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation 
+                } else {
+                    foldingCornerRotation
+                } 
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation
+                } else {
+                    foldingCornerRotation 
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    foldingCornerRotation 
+                } else {
+                    foldingCornerRotation 
+                } 
+            }
+        }
+    }
+
+
+    /**
+     * get linear gradient rotation base
+     */
+    fun getLinearGradientRotationBaseFront(
+        motionbaseParam: MotionbaseParam): Double {
+        
+        return if (direction == Direction.HORIZONTAL) {
+           if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI * 3.0 / 2.0
+                } else {
+                    kotlin.math.PI * 3.0 / 2.0  
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI * 3.0 / 2.0
+                } else {
+                    kotlin.math.PI * 3.0 / 2.0
+                } 
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI * 3.0 / 2.0
+                } else {
+                    kotlin.math.PI / 2.0
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI / 2.0
+                } else {
+                    kotlin.math.PI * 3.0 / 2.0
+                } 
+            }
+        }
+    }
+
+    /**
+     * get linear gradient rotation base
+     */
+    fun getLinearGradientRotationBaseBack(
+        motionbaseParam: MotionbaseParam): Double {
+        
+        return if (direction == Direction.HORIZONTAL) {
+           if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI / 2.0
+                } else {
+                    kotlin.math.PI / 2.0
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI / 2.0
+                } else {
+                    kotlin.math.PI / 2.0
+                } 
+            }
+        } else {
+            if (motionbaseParam.linesParam.index == 0) {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI / 2.0
+                } else {
+                    kotlin.math.PI / 2.0
+                }
+            } else {
+                if (motionbaseParam.startIndex == 0) {
+                    kotlin.math.PI * 3.0 / 2.0
+                } else {
+                    kotlin.math.PI * 3.0 / 2.0
+                } 
             }
         }
     }
