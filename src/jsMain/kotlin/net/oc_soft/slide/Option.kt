@@ -3,6 +3,8 @@ package net.oc_soft.slide
 import kotlin.js.Json
 import kotlin.collections.MutableMap
 
+import kotlin.text.toInt
+
 import org.w3c.dom.HTMLElement
 
 import net.oc_soft.BackgroundStyle
@@ -159,7 +161,6 @@ class Option {
                 null
             } 
         }
-
 
         /**
          * extract animation option from option map

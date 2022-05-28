@@ -12,10 +12,6 @@ class Animation(
      */
     val fragments: Array<Fragment>,
     /**
-     * animation engin event target
-     */
-    val animationEngine: EventTarget,
-    /**
      * run animation
      */
     val runAnimation: ()->Unit) {

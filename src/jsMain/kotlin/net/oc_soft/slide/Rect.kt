@@ -141,7 +141,6 @@ class Rect {
 
             return Animation(
                 fragments.toTypedArray(),
-                containerElement,
                 { pointsAnimation.start() })
         }
 

@@ -166,7 +166,6 @@ class Square {
 
             return Animation(
                 fragments.toTypedArray(),
-                containerElement,
                 { pointsAnimation.start() })
         }
 

@@ -16,6 +16,8 @@ import org.w3c.dom.url.URL
 import org.w3c.dom.get
 import org.w3c.dom.set
 
+import net.oc_soft.animation.PointsAnimation
+import net.oc_soft.animation.QubicBezier
 
 
 /**
@@ -58,7 +60,187 @@ class TurnPage {
             }
     }
 
+
     /**
+     * class instance
+     */
+    companion object {
+
+        /**
+         * get container size
+         */
+        fun getFoldingSpaceSize(
+            foldingSpace: HTMLElement): DoubleArray {
+            val bounds = foldingSpace.getBoundingClientRect()
+            return doubleArrayOf(bounds.width, bounds.height)
+        }
+
+        /**
+         * folding space bounds
+         */
+        fun getFoldingSpaceBounds(
+            foldingSpace: HTMLElement): Array<DoubleArray> {
+            val spaceSize = getFoldingSpaceSize(foldingSpace)
+            return arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(spaceSize[0], 0.0),
+                doubleArrayOf(spaceSize[0], spaceSize[1]),
+                doubleArrayOf(0.0, spaceSize[1]))
+        }
+ 
+        /**
+         * calculate page size
+         */
+        fun calcPageSize(
+            container: HTMLElement,
+            direction: Direction): DoubleArray {
+            val bounds = container.getBoundingClientRect()
+            
+            return if (direction == Direction.HORIZONTAL) { 
+                doubleArrayOf(
+                    bounds.width / 2.0,
+                    bounds.height) 
+            } else {
+                doubleArrayOf(
+                    bounds.width,
+                    bounds.height / 2.0)
+            }
+        }
+
+        /**
+         * select base lines
+         */
+        fun selectBaseLines(
+            bounds: Array<DoubleArray>,
+            direction: Direction): Array<Line> {
+
+            val indices = when (direction) {
+            Direction.HORIZONTAL -> arrayOf(intArrayOf(0, 1), intArrayOf(3, 2))
+            else -> arrayOf(intArrayOf(0, 3), intArrayOf(1, 2))
+            }  
+            return arrayOf(
+                Line(bounds[indices[0][0]], bounds[indices[0][1]]),
+                Line(bounds[indices[1][0]], bounds[indices[1][1]]))
+        }
+        
+        /**
+         * create motionbase parameter
+         */
+        fun createMotionbaseParam(
+            bounds: Array<DoubleArray>,
+            direction: Direction,
+            flipOrder: Int,
+            flipStart: Int): MotionbaseParam {
+             
+            val lines = selectBaseLines(bounds, direction)
+
+            val startIdx = ((flipOrder + 1) / 2 + 1) % 2
+            val lineIndex = ((flipStart + 1) / 2) % 2
+            return MotionbaseParam(LinesParam(lines, lineIndex), startIdx)
+        }
+
+    
+
+        /**
+         * create bezier
+         */
+        fun createBezier(
+            line: Line,
+            cornerLine: Array<Array<Number>>): Bezier {
+
+            val dir = line[1] - line[0] 
+            val crossDir = doubleArrayOf(dir[1], dir[0])
+            
+            val crossLine = Line(line[0], line[0] + crossDir)
+
+            val p1 = doubleArrayOf( 
+                line.pointAt(cornerLine[0][0].toDouble())[0],
+                crossLine.pointAt(cornerLine[0][1].toDouble())[1])
+            val p2 = doubleArrayOf(
+                line.pointAt(cornerLine[1][0].toDouble())[0],
+                crossLine.pointAt(cornerLine[1][1].toDouble())[1])
+        
+            return Bezier(line[0], p1, p2, line[1])
+        }
+        
+
+
+       
+
+        /**
+         * create points on bezier curve
+         */
+        fun createBezierPoints(
+            bezier: Bezier,
+            steps: Int): Array<DoubleArray> {
+
+            val points = ArrayList<DoubleArray>()
+            points.add(bezier.calcPointAt(0.0)) 
+            for (idx in 1 until steps) {
+                points.add(bezier.calcPointAt(
+                    idx.toDouble() / steps.toDouble()))
+            }
+            points.add(bezier.calcPointAt(1.0))
+            return points.toTypedArray()
+        }
+
+
+
+        /**
+         * turn page animator
+         */
+        fun createAnimator(
+            turnPage: TurnPage,
+            motionbaseParam: MotionbaseParam): (DoubleArray, Double)->Unit {
+            
+            val result: (DoubleArray, Double)->Unit = {
+                pt, _ ->
+                turnPage.flippingPage(pt, motionbaseParam) 
+            }
+            return result
+        }
+        /**
+         * get duration from animation option
+         */
+        fun getDuration(
+            animationOption: Map<String, Any>): Double {
+            return animationOption["duration"]?.let {
+                when(it) {
+                    is String -> it.toDoubleOrNull()!!
+                    is Number -> it.toDouble()
+                    else -> 0.0
+                }?: 0.0
+            }?: 0.0
+        }
+        /**
+         * get animation start delay from animation option
+         */
+        fun getAnimationDelay(
+            animationOption: Map<String, Any>): Double {
+            return animationOption["delay"]?.let {
+                when(it) {
+                    is String -> it.toDoubleOrNull()!!
+                    is Number -> it.toDouble()
+                    else -> 0.0
+                }?: 0.0
+            }?: 0.0
+        }
+        /**
+         * get animation end from animation option
+         */
+        fun getAnimationEndDelay(
+            animationOption: Map<String, Any>): Double {
+            return animationOption["end-delay"]?.let {
+                when(it) {
+                    is String -> it.toDoubleOrNull()!!
+                    is Number -> it.toDouble()
+                    else -> 0.0
+                }?: 0.0
+            }?: 0.0
+        }
+    }
+
+   /**
      * bezier curve
      */
     data class Bezier(
@@ -69,8 +251,7 @@ class TurnPage {
         /**
          * calulate a point at time t
          */
-        fun calcPointAtT(
-            curve: Bezier,
+        fun calcPointAt(
             t: Double): DoubleArray {
             val oneT = 1.0 - t 
             val oneTP2 = oneT.pow(2.0)
@@ -83,11 +264,11 @@ class TurnPage {
             val c = 3 * oneT * tP2
             val d = tP3
             
-            return DoubleArray(curve.p0.size) {
-                var cmp = a * curve.p0[it]
-                cmp += b * curve.p1[it]
-                cmp += c * curve.p2[it] 
-                cmp += d * curve.p3[it] 
+            return DoubleArray(p0.size) {
+                var cmp = a * p0[it]
+                cmp += b * p1[it]
+                cmp += c * p2[it] 
+                cmp += d * p3[it] 
                 cmp
             }
         }
@@ -176,13 +357,6 @@ class TurnPage {
         val endIndex: Int get() = (startIndex + 1) % 2
     }
 
-
-    /**
-     * spread pages 
-     */
-    var pagesView: HTMLElement? = null
-
-
     /**
      * page index
      */
@@ -243,36 +417,26 @@ class TurnPage {
     /**
      * folding element size
      */
-    val foldingElementSize: Double
-        get() {
-            return getFoldingElementSize(foldingSpace!!,
-                getContainerDirection(foldingSpace!!)) 
-        }
-
+    val foldingElementSize: Double get() = 
+        getFoldingElementSize(foldingSpace!!, direction)
 
     /**
      * folding space element
      */
     val foldingSpaceSize: DoubleArray
-        get() {
-            val bounds = foldingSpace!!.getBoundingClientRect()
-            return doubleArrayOf(bounds.width, bounds.height)
-        }
-
+        get() = getFoldingSpaceSize(foldingSpace!!)
     
+
+    /**
+     * page size
+     */
+    val pageSize: DoubleArray
+        get() = calcPageSize(foldingSpace!!, direction)
     /**
      * page bounds
      */
-    val pageBounds: Array<DoubleArray>
-        get() {
-            val spaceSize = foldingSpaceSize
-            return arrayOf(
-                doubleArrayOf(0.0, 0.0),
-                doubleArrayOf(spaceSize[0], 0.0),
-                doubleArrayOf(spaceSize[0], spaceSize[1]),
-                doubleArrayOf(0.0, spaceSize[1]))
-        }
-
+    val pageBounds: Array<DoubleArray> get() = 
+        getFoldingSpaceBounds(foldingSpace!!)
 
     /**
      * get page content
@@ -303,23 +467,6 @@ class TurnPage {
         return LinesParam(baseLines, indexDistances[0].first)
     }
 
-
-    /**
-     * select base lines
-     */
-    fun selectBaseLines(
-        bounds: Array<DoubleArray>,
-        direction: Direction): Array<Line> {
-
-        val indices = when (direction) {
-        Direction.HORIZONTAL -> arrayOf(intArrayOf(0, 1), intArrayOf(3, 2))
-        else -> arrayOf(intArrayOf(0, 3), intArrayOf(1, 2))
-        }  
-        return arrayOf(
-            Line(bounds[indices[0][0]], bounds[indices[0][1]]),
-            Line(bounds[indices[1][0]], bounds[indices[1][1]]))
-    }
-    
 
     /**
      * select base line
@@ -378,17 +525,6 @@ class TurnPage {
         val cp2 = motionbaseParam.linesParam.baseLine[endIdx]
         val cp3 = motionbaseParam.linesParam.baseLine[endIdx] 
         return Bezier(pointStart, cp1, cp2, cp3)
-    }
-
-    /**
-     * get half page size
-     */
-    fun getHalfPageSize(direction: Direction): DoubleArray {
-        
-        val result = foldingSpaceSize 
-
-        result[direction.crossDirection.coordinateSelector] /= 2.0
-        return result
     }
 
     
@@ -706,25 +842,6 @@ class TurnPage {
 
 
     /**
-     * calculate page size
-     */
-    fun calcPageSize(
-        container: HTMLElement,
-        direction: Direction): DoubleArray {
-        val bounds = container.getBoundingClientRect()
-        
-        return if (direction == Direction.HORIZONTAL) { 
-            doubleArrayOf(
-                bounds.width / 2.0,
-                bounds.height) 
-        } else {
-            doubleArrayOf(
-                bounds.width,
-                bounds.height / 2.0)
-        }
-    }
-
-    /**
      * synchronize view with current page index
      */
     fun syncViewWithPageIndex() {
@@ -1011,9 +1128,6 @@ class TurnPage {
      */
     fun prepareFlipping(
         motionbaseParam: MotionbaseParam) {
-
-        
-
         if (motionbaseParam.startIndex == 0) {
             setBackFoldingPageContent(getPageContent(pageIndex))
             setFrontFoldingPageContent(getPageContent(pageIndex - 1)) 
