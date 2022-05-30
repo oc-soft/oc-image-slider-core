@@ -4,12 +4,15 @@ import kotlin.collections.Map
 import kotlin.collections.ArrayList
 import kotlin.js.Promise
 
+import kotlinx.browser.document
+
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
 
 import net.oc_soft.AutoPaging
 import net.oc_soft.animation.PointsAnimation
 import net.oc_soft.animation.QubicBezier
+import net.oc_soft.BackgroundStyle
 
 /**
  * turn page auto paging pager
@@ -39,9 +42,13 @@ class TurnAutoPager {
             val motionbaseParam = TurnPage.createMotionbaseParam(
                 bounds, direction, flipOrder, flipStart)
 
+            val baseLine = motionbaseParam.linesParam.baseLine
+            val lineForBezier = TurnPage.Line(
+                baseLine[motionbaseParam.startIndex],
+                baseLine[motionbaseParam.endIndex])
+                
             val bezier = TurnPage.createBezier(
-                motionbaseParam.linesParam.baseLine,
-                cornerLine)
+                lineForBezier, cornerLine)
             
             val bezierPoints = TurnPage.createBezierPoints(bezier, steps)
             
@@ -52,12 +59,41 @@ class TurnAutoPager {
             turnPage.createFoldingSpace(containerElement, direction)
 
             return createPager(
-                turnPage, motionbaseParam, containerElement,
+                turnPage, 
+                motionbaseParam, containerElement,
                 pointsAnimation,
                 bezierPoints,
                 animationOption)
 
-       }
+        }
+        
+        /**
+         * create points animation
+         */
+        fun createInitPointsAnimationProc(
+            pointsAnimation: PointsAnimation,
+            points: Array<DoubleArray>,
+            animator: (DoubleArray, Double)->Unit,
+            startHandler: ()->Unit,
+            finishHandler: ()->Unit,
+            duration: Double,
+            rateToIndex: (Double)->Double,
+            delay: Double,
+            endDelay: Double): ()->PointsAnimation {
+
+            val result: ()->PointsAnimation = {
+                pointsAnimation.add(points,
+                    animator,
+                    startHandler,
+                    finishHandler,
+                    duration,
+                    rateToIndex,
+                    delay,
+                    endDelay)
+                pointsAnimation
+            }
+            return result
+        }
 
         /**
          * create pager 
@@ -76,8 +112,10 @@ class TurnAutoPager {
                 turnPage, motionbaseParam)
 
             val animator = TurnPage.createAnimator(turnPage, motionbaseParam)
-
-            pointsAnimation.add(points,
+            
+            val initPointsAnimation = createInitPointsAnimationProc(
+                pointsAnimation,
+                points,
                 animator,
                 startHdlr,
                 finishHdlr,
@@ -94,8 +132,10 @@ class TurnAutoPager {
                  */
                 override fun setupPages(
                     numberPages: Int, 
-                    createPage: (Int)->HTMLElement) {
-                    setupPages(turnPage, numberPages, createPage) 
+                    createPage: (Int)->HTMLElement,
+                    getBackground: (Int)->String? ) {
+                    setupPages(turnPage, numberPages, 
+                        createPage, getBackground) 
                 }
 
                 /**
@@ -109,7 +149,10 @@ class TurnAutoPager {
                  * proceed a page
                  */
                 override fun nextPage(): Promise<Unit> {
-                    return nextPage(turnPage, pointsAnimation, animatingStatus)
+                    return nextPage(turnPage, 
+                        motionbaseParam,
+                        initPointsAnimation, 
+                        animatingStatus)
                 }
             }
         }
@@ -119,7 +162,14 @@ class TurnAutoPager {
         fun createStartAnimationHandler(
             turnPage: TurnPage,
             motionbaseParam: TurnPage.MotionbaseParam): ()->Unit {
+            var callCount = 0 
             val result: ()->Unit = {
+                turnPage.prepareFlipping(motionbaseParam) 
+                if (callCount > 0) {
+                    println("animation handler")
+                }
+                
+                callCount++
             }
             return result
         }
@@ -130,6 +180,7 @@ class TurnAutoPager {
             turnPage: TurnPage,
             motionbaseParam: TurnPage.MotionbaseParam): ()->Unit {
             val result: ()->Unit = {
+                turnPage.visibleFoldingElement = false 
             }
             return result
         }
@@ -139,7 +190,8 @@ class TurnAutoPager {
          */
         fun setupPages(turnPage: TurnPage,
             numberOfPages: Int,
-            createPage: (Int)->HTMLElement) {
+            createPage: (Int)->HTMLElement,
+            getBackgroundStyle: (Int)->String?) {
             val direction = turnPage.direction 
             val rowColumn = if (direction == TurnPage.Direction.HORIZONTAL) {
                 intArrayOf(1, 2)
@@ -148,7 +200,7 @@ class TurnAutoPager {
             }
             
 
-            val pageSize = turnPage.pageSize
+            val pageSize = turnPage.foldingSpaceSize
             val pages = ArrayList<HTMLElement>()
             for (pageIdx in 0 until numberOfPages) {
                 
@@ -156,13 +208,46 @@ class TurnAutoPager {
                     rowColumn[0], rowColumn[1],
                     kotlin.math.round(pageSize[0]).toInt(),
                     kotlin.math.round(pageSize[1]).toInt(),
-                    { createPage(pageIdx) }    
+                    { createElement(
+                        pageSize,
+                        pageIdx,
+                        createPage,
+                        getBackgroundStyle) }    
                 )
                 pageAndGrids.forEach {
                     pages.add(it.first)
                 }
             }
             turnPage.setPages(pages.toTypedArray()) 
+        }
+
+        /**
+         * create 
+         */
+        fun createElement(
+            foldingSpaceSize: DoubleArray,
+            pageIndex: Int,
+            createPage: (Int)->HTMLElement,
+            getBackgroundStyle: (Int)->String?): HTMLElement {
+
+            val pageParent = document.createElement("div") as HTMLElement
+
+            pageParent.style.width = "${foldingSpaceSize[0]}px"
+            pageParent.style.height = "${foldingSpaceSize[1]}px"
+            pageParent.style.position = "relative"
+
+
+            getBackgroundStyle(pageIndex)?.let {
+                 
+                pageParent.style.background = it
+            }
+             
+            pageParent.append(createPage(pageIndex))
+            val result = document.createElement("div") as HTMLElement
+
+            result.append(pageParent)
+            
+            return result
         }
 
 
@@ -188,7 +273,8 @@ class TurnAutoPager {
          */
         fun nextPage(
             turnPage: TurnPage,
-            pointsAnimation: PointsAnimation,
+            motionbaseParam: TurnPage.MotionbaseParam,
+            initPointsAnimation: ()-> PointsAnimation,
             animatingStatus: AnimatingStatus): Promise<Unit> {
 
             val handler = animatingStatus.animationEventHandler
@@ -198,7 +284,8 @@ class TurnAutoPager {
                     val handler0: (Event)->Unit = {
                         if (it.type == "finish") {
                             animatingStatus.animationEventHandler = null
-                            resolve(Unit)
+                            resolve(Unit) 
+                            turnPage.visibleFoldingElement = false 
                         }
                     }
                     turnPage.foldingSpace!!.addEventListener(
@@ -208,7 +295,8 @@ class TurnAutoPager {
                             val once = true
                         })
                     animatingStatus.animationEventHandler = handler0
-                    pointsAnimation.start()
+
+                    initPointsAnimation().start()
                 }
                 
             } else {

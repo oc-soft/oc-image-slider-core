@@ -48,7 +48,7 @@ class AutoPagingOption {
             
             val flipOrder: Int =  optionMap["flip-order"]?.let {
                 when (it) {
-                is String -> if (it.toInt() >= 0) { 1 } else { -1 }
+                is String -> if (it == "forward") { 1 } else { -1 }
                 is Number -> if (it.toInt() >= 0) { 1 } else { -1 }
                 else -> 1
                 } 
@@ -82,7 +82,7 @@ class AutoPagingOption {
             return if (steps != null && animationOption != null) {
                 TurnAutoPager.createPager(containerElement,
                     direction, flipOrder, flipStart,
-                    cornerLine, steps!!, animationOption!!)
+                    cornerLine, steps, animationOption)
             } else null 
         }
 

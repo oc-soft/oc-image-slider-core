@@ -134,8 +134,8 @@ class TurnPage {
              
             val lines = selectBaseLines(bounds, direction)
 
-            val startIdx = ((flipOrder + 1) / 2 + 1) % 2
-            val lineIndex = ((flipStart + 1) / 2) % 2
+            val startIdx = ((flipOrder + 1) / 2) % 2
+            val lineIndex = ((- flipStart + 1) / 2) % 2
             return MotionbaseParam(LinesParam(lines, lineIndex), startIdx)
         }
 
@@ -401,6 +401,35 @@ class TurnPage {
      */
     val backFoldingElement: HTMLElement get() = 
         getBackFoldingElement(foldingSpace!!)!!
+
+
+    /**
+     * visibility of folding element
+     */
+    var visibleFoldingElement: Boolean  
+        get() {
+  
+            val frontFoldingElement = this.frontFoldingElement
+
+            return frontFoldingElement.style.display?.let {
+                it == "block"
+            }?: true
+        }
+        set(value) {
+            if (value != visibleFoldingElement) {
+                val displayOption = if (value) {
+                    "block"
+                } else {
+                    "none"
+                } 
+                arrayOf(
+                    this.frontFoldingElement,
+                    this.backFoldingElement).forEach {
+                    it.style.display = displayOption
+                }
+            }
+        }
+
 
     /**
      * frontFoldingShadeElement
@@ -1257,10 +1286,8 @@ class TurnPage {
         backPageContainer.style.transform = "$bRotStr0 $bTrsStr"
         backShadeContainer.style.transform = "$bRotStr0 $bTrsStr"
 
-
-        backFoldingElement.style.display = "block"
-        frontFoldingElement.style.display = "block"
-
+        visibleFoldingElement = true
+        
         flippingShade0(point, motionbaseParam, fcr0, fcr, fcbLoc)
         flippingShade1(point, motionbaseParam, fcr0, fcr, fcbLoc)
     }

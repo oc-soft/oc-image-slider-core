@@ -1,6 +1,7 @@
 package net.oc_soft
 
 import kotlin.js.Json
+import kotlin.js.JSON
 import kotlin.js.Promise
 
 import kotlin.collections.MutableList
@@ -36,7 +37,8 @@ class AutoPaging(
          */
         fun setupPages(
             numberOfPages: Int, 
-            createPage: (Int)->HTMLElement)
+            createPage: (Int)->HTMLElement,
+            getBackground: (Int)->String?)
 
         /**
          * set page no effect
@@ -192,6 +194,7 @@ class AutoPaging(
 
                 val pagerContainer = createPagingContainerElement()
                 pagerParent.append(pagerContainer)
+
                 val elem = AutoPagingOption.createPager(
                     pagerContainer, pagerSetting)?.let {
                     Pair(it, pagerContainer)
@@ -221,11 +224,9 @@ class AutoPaging(
 
         val result = document.createElement("div") as HTMLElement
 
-        result.style.top = "0px"
-        result.style.left = "0px"
-        result.style.bottom = "0px"
-        result.style.right = "0px"
         result.style.position = "relative"
+        result.style.width = "100%"
+        result.style.height = "100%"
         result.classList.add("pager")
         result.classList.add("container")
         result.classList.add("root")
@@ -238,7 +239,7 @@ class AutoPaging(
      */
     fun loadContentTemplates(): Array<HTMLElement> {
         return pagingContainer?.let {
-            it.querySelector("template")?.let {
+            it.querySelector("template.pages")?.let {
                 val tmpl = it as HTMLTemplateElement
                 
 
@@ -249,22 +250,45 @@ class AutoPaging(
             }?: emptyArray<HTMLElement>()
         }?: emptyArray<HTMLElement>()
     }
+
+
+    /**
+     * load backgrounds from template
+     */
+    fun loadContentBackgrounds(): Array<String> {
+        return pagingContainer?.let {
+            it.querySelector("template.backgrounds")?.let {
+                val tmpl = it as HTMLTemplateElement
+                tmpl.content.firstElementChild?.let {
+                    val bgContainer = it as HTMLElement
+                    JSON.parse<Array<String>>(bgContainer.innerText)
+                }?: emptyArray<String>() 
+            }?: emptyArray<String>()
+        }?: emptyArray<String>() 
+    }
    
     /**
      * animation sequence
      */
     fun animationSequence0(
-        pages: Array<HTMLElement>) {
+        pages: Array<HTMLElement>,
+        backgrounds: Array<String>) {
         pagingContainer?.let {
             val pagerContainer = it
             val createPage: (Int) -> HTMLElement = {
                 pages[it].cloneNode(true) as HTMLElement
             } 
 
+            val getBackgrounds: (Int)-> String? = {
+                if (it in backgrounds.indices) {
+                    backgrounds[it]
+                } else null
+            }
+
             pagers.forEach {
                 it ?.let {
                     pagerContainer.append(it.second)
-                    it.first.setupPages(pages.size, createPage) 
+                    it.first.setupPages(pages.size, createPage, getBackgrounds) 
                     it.second.remove()
                 }
             }  
@@ -289,8 +313,9 @@ class AutoPaging(
         pagingContainer?.let {
             val pagerContainer = it
             val pages = loadContentTemplates()   
+            val backgrounds = loadContentBackgrounds()
             val pagingStatus = PagingStatus(pages)
-            animationSequence0(pages)
+            animationSequence0(pages, backgrounds)
             getPager(pagingStatus.pageIndex)?.let {
                 pagerContainer.append(it.second)
                 it.first.page = pagingStatus.pageIndex
@@ -304,14 +329,15 @@ class AutoPaging(
      */
     fun autoPlay(): Promise<Unit> {
         var pagingStatus = this.pagingStatus
-        return if (pagingStatus == null) {
+        
+        if (pagingStatus == null) {
             prepareAutoPlay()
-            pagingStatus = this.pagingStatus!!
-            pagingStatus.statusPromise = autoPlay0()
-            pagingStatus.statusPromise!!
-        } else {
-            pagingStatus.statusPromise!!
         }
+        pagingStatus = this.pagingStatus!!        
+        if (pagingStatus.statusPromise == null) { 
+            pagingStatus.statusPromise = autoPlay0()
+        }
+        return pagingStatus.statusPromise!!
     }
 
     /**
@@ -328,23 +354,34 @@ class AutoPaging(
                 }?: Promise.resolve(Unit)
 
                 pagingAnim.then {
-                    getPager(pagingStatus0.pageIndex)?.let {
-                        it.second.remove()
-                    }
-
+                    val lastPager = getPager(pagingStatus0.pageIndex)
                     pagingStatus0.pageIndex++ 
                     if (loopPaging) {
                         pagingStatus0.pageIndex %= pagingStatus0.pages.size
                     }
+                    val currentPager = getPager(pagingStatus0.pageIndex)
+                    if (pagingStatus0.pageIndex < 
+                            pagingStatus0.pages.size - 1) {
 
-                    if (pagingStatus0.pageIndex < pagingStatus0.pages.size) {
-                         getPager(pagingStatus0.pageIndex)?.let {
-                            pagingContainer!!.append(it.second)
+                        if (currentPager != lastPager) { 
+                            currentPager?.let {
+                                pagingContainer!!.append(it.second)
+                            }
+                            lastPager?.let {
+                                it.second.remove()
+                            }
+                        }
+                        currentPager?.let {
                             it.first.page = pagingStatus0.pageIndex
                         }
                         autoPlay0()
                     } else {
-                        this.pagingStatus = null
+                        pagingStatus?.let {
+                            it.statusPromise = null
+                        }
+                        currentPager?.let {
+                            it.first.page = pagingStatus0.pageIndex
+                        }
                         resolve(Unit)
                     }
                 }
