@@ -9,15 +9,14 @@ import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
 
-import net.oc_soft.AutoPaging
 import net.oc_soft.animation.PointsAnimation
 import net.oc_soft.animation.QubicBezier
 import net.oc_soft.BackgroundStyle
 
 /**
- * turn page auto paging pager
+ * turn pager 
  */
-class TurnAutoPager {
+class TurnPager {
 
     /**
      * class instance
@@ -30,39 +29,50 @@ class TurnAutoPager {
         fun createPager(
             containerElement: HTMLElement,
             direction: TurnPage.Direction,
-            flipOrder: Int,
             flipStart: Int,
-            cornerLine: Array<Array<Number>>,
+            cornerLines: Array<Array<Array<Number>>>,
             steps: Int,
-            animationOption: Map<String, Any>): AutoPaging.Pager {
+            loopPage: Boolean,
+            animationOption: Map<String, Any>): Pager {
 
             val bounds = TurnPage.getFoldingSpaceBounds(
                 containerElement)
             
-            val motionbaseParam = TurnPage.createMotionbaseParam(
-                bounds, direction, flipOrder, flipStart)
+            val motionbaseParams = Array<TurnPage.MotionbaseParam>(2) {
+                val idx = it
+                TurnPage.createMotionbaseParam(
+                    bounds, direction, idx, flipStart)
+            }
 
-            val baseLine = motionbaseParam.linesParam.baseLine
-            val lineForBezier = TurnPage.Line(
-                baseLine[motionbaseParam.startIndex],
-                baseLine[motionbaseParam.endIndex])
+            val bezierPointsArray = Array<Array<DoubleArray>>(2) {
+                val idx = it
+                val motionbaseParam = motionbaseParams[idx]
+
+                val baseLine = motionbaseParam.linesParam.baseLine
+
+                val lineForBezier = 
+                    TurnPage.Line(
+                        baseLine[motionbaseParam.startIndex],
+                        baseLine[motionbaseParam.endIndex])
                 
-            val bezier = TurnPage.createBezier(
-                lineForBezier, cornerLine)
+                val bezier = TurnPage.createBezier(
+                    lineForBezier, cornerLines[idx])
             
-            val bezierPoints = TurnPage.createBezierPoints(bezier, steps)
+                TurnPage.createBezierPoints(bezier, steps)
+            }
             
             val pointsAnimation = PointsAnimation(containerElement)
 
             val turnPage = TurnPage()
+            turnPage.loopPage = loopPage
             
             turnPage.createFoldingSpace(containerElement, direction)
 
             return createPager(
                 turnPage, 
-                motionbaseParam, containerElement,
+                motionbaseParams, containerElement,
                 pointsAnimation,
-                bezierPoints,
+                bezierPointsArray,
                 animationOption)
 
         }
@@ -72,20 +82,24 @@ class TurnAutoPager {
          */
         fun createInitPointsAnimationProc(
             pointsAnimation: PointsAnimation,
-            points: Array<DoubleArray>,
-            animator: (DoubleArray, Double)->Unit,
-            startHandler: ()->Unit,
-            finishHandler: ()->Unit,
+            pointsArray: Array<Array<DoubleArray>>,
+            animators: Array<(DoubleArray, Double)->Unit>,
+            startHandlers: Array<()->Unit>,
+            finishHandlers: Array<()->Unit>,
             duration: Double,
             rateToIndex: (Double)->Double,
             delay: Double,
-            endDelay: Double): ()->PointsAnimation {
+            endDelay: Double): (Int)->PointsAnimation {
 
-            val result: ()->PointsAnimation = {
+            
+            val result: (Int)->PointsAnimation = {
+                pointsSelector ->
+                val idx = pointsSelector % pointsArray.size
+                val points = pointsArray[idx]
                 pointsAnimation.add(points,
-                    animator,
-                    startHandler,
-                    finishHandler,
+                    animators[idx],
+                    startHandlers[idx],
+                    finishHandlers[idx],
                     duration,
                     rateToIndex,
                     delay,
@@ -100,32 +114,39 @@ class TurnAutoPager {
          */
         fun createPager(
             turnPage: TurnPage,
-            motionbaseParam: TurnPage.MotionbaseParam,
+            motionbaseParams: Array<TurnPage.MotionbaseParam>,
             container: HTMLElement,
             pointsAnimation: PointsAnimation,
-            points: Array<DoubleArray>,
-            animationOption: Map<String, Any>): AutoPaging.Pager {
-            val startHdlr = createStartAnimationHandler(
-                turnPage, motionbaseParam)
+            pointsArray: Array<Array<DoubleArray>>,
+            animationOption: Map<String, Any>): Pager {
+            val startHdlrs = Array<()->Unit>(motionbaseParams.size) {
+                createStartAnimationHandler(
+                    turnPage, motionbaseParams[it])
+            }
 
-            val finishHdlr = createFinishAnimationHandler(
-                turnPage, motionbaseParam)
+            val finishHdlrs = Array<()->Unit>(motionbaseParams.size) {
+                createFinishAnimationHandler(
+                    turnPage, motionbaseParams[it])
+            }
 
-            val animator = TurnPage.createAnimator(turnPage, motionbaseParam)
+            val animators = Array<(DoubleArray, Double)->Unit>(
+                motionbaseParams.size) {
+                TurnPage.createAnimator(turnPage, motionbaseParams[it])
+            }
             
             val initPointsAnimation = createInitPointsAnimationProc(
                 pointsAnimation,
-                points,
-                animator,
-                startHdlr,
-                finishHdlr,
+                pointsArray,
+                animators,
+                startHdlrs,
+                finishHdlrs,
                 TurnPage.getDuration(animationOption),
                 { QubicBezier.easeInOut(it) },
                 TurnPage.getAnimationDelay(animationOption),
                 TurnPage.getAnimationEndDelay(animationOption))
             val animatingStatus = AnimatingStatus()
 
-            return object: AutoPaging.Pager {
+            return object: Pager {
 
                 /**
                  * setup pages
@@ -145,12 +166,24 @@ class TurnAutoPager {
                     get() = getPage(turnPage)
                     set(value) = setPage(turnPage, value)
 
+
                 /**
-                 * proceed a page
+                 * proceed a page to next
                  */
                 override fun nextPage(): Promise<Unit> {
-                    return nextPage(turnPage, 
-                        motionbaseParam,
+                    return proceedPage(turnPage, 
+                        0,
+                        motionbaseParams[0],
+                        initPointsAnimation, 
+                        animatingStatus)
+                }
+                /**
+                 * proceed a page to previous
+                 */
+                override fun prevPage(): Promise<Unit> {
+                    return proceedPage(turnPage, 
+                        1,
+                        motionbaseParams[1],
                         initPointsAnimation, 
                         animatingStatus)
                 }
@@ -162,14 +195,9 @@ class TurnAutoPager {
         fun createStartAnimationHandler(
             turnPage: TurnPage,
             motionbaseParam: TurnPage.MotionbaseParam): ()->Unit {
-            var callCount = 0 
             val result: ()->Unit = {
                 turnPage.prepareFlipping(motionbaseParam) 
-                if (callCount > 0) {
-                    println("animation handler")
-                }
                 
-                callCount++
             }
             return result
         }
@@ -269,12 +297,13 @@ class TurnAutoPager {
         }
     
         /**
-         * foward page
+         * proceed page
          */
-        fun nextPage(
+        fun proceedPage(
             turnPage: TurnPage,
+            pointsSelector: Int,
             motionbaseParam: TurnPage.MotionbaseParam,
-            initPointsAnimation: ()-> PointsAnimation,
+            initPointsAnimation: (Int)-> PointsAnimation,
             animatingStatus: AnimatingStatus): Promise<Unit> {
 
             val handler = animatingStatus.animationEventHandler
@@ -296,7 +325,7 @@ class TurnAutoPager {
                         })
                     animatingStatus.animationEventHandler = handler0
 
-                    initPointsAnimation().start()
+                    initPointsAnimation(pointsSelector).start()
                 }
                 
             } else {

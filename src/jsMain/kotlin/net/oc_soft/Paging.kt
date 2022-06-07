@@ -17,40 +17,17 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLTemplateElement
 import org.w3c.dom.get
 
-import net.oc_soft.slide.AutoPagingOption
+import net.oc_soft.slide.PagerOption
+import net.oc_soft.slide.Pager
 
 /**
  * page style slide
  */
-class AutoPaging(
+class Paging(
     /**
      * setting 
      */
     val settingQuery: String) {
-
-    /**
-     * paging protocol
-     */
-    interface Pager {
-        /**
-         * set all pages
-         */
-        fun setupPages(
-            numberOfPages: Int, 
-            createPage: (Int)->HTMLElement,
-            getBackground: (Int)->String?)
-
-        /**
-         * set page no effect
-         */
-        var page: Int
-
-
-        /**
-         * next page
-         */
-        fun nextPage(): Promise<Unit>
-    }
 
     /**
      * paging status
@@ -100,15 +77,68 @@ class AutoPaging(
     /**
      * load setting
      */
-    fun loadSetting(url: URL):Promise<Unit> {
-        val searchParams = url.searchParams
-        searchParams.append("action", settingQuery)
-        return window.fetch(url).then({
-            it.json()
-        }).then({
-            updateSetting(it as Json)
-        })
+    fun loadSetting(url: URL?):Promise<Unit> {
+
+        val settings = loadSettings()
+        return if (settings != null) { 
+            updateSetting(settings)
+            Promise.resolve(Unit)
+        } else {
+            url?.let {
+                val searchParams = url.searchParams
+                searchParams.append("action", settingQuery)
+                return window.fetch(url).then({
+                    it.json()
+                }).then({
+                    updateSetting(it as Json)
+                })
+            }?: Promise.reject(IllegalArgumentException())
+        }
     }
+
+    /**
+     * load settings from template
+     */
+    fun loadSettings():Json? {
+        var settings = loadSettingsRaw()
+        if (settings == null) {
+            settings = loadSettings64()
+        }
+        return settings
+    }
+
+
+    /**
+     * load settings from template as json format
+     */
+    fun loadSettingsRaw(): Json? {
+        return pagingContainer?.let {
+            it.querySelector("template.settings")?.let {
+                val tmpl = it as HTMLTemplateElement
+                tmpl.content.firstElementChild?.let {
+                    val bgContainer = it as HTMLElement
+                    JSON.parse<Json>(bgContainer.innerText)
+                }
+            }
+        }
+    }
+
+    /**
+     * load settings from template as json format
+     */
+    fun loadSettings64(): Json? {
+        return pagingContainer?.let {
+            it.querySelector("template.settings-b64")?.let {
+                val tmpl = it as HTMLTemplateElement
+                tmpl.content.firstElementChild?.let {
+                    val bgContainer = it as HTMLElement
+                    JSON.parse<Json>(
+                        window.atob(bgContainer.innerText))
+                }
+            }
+        }
+    }
+
 
     /**
      * setup auto paging
@@ -178,6 +208,7 @@ class AutoPaging(
      * detach this object from html elelements
      */
     fun unbind() {
+        this.pagingContainer = null
     }
 
 
@@ -195,7 +226,7 @@ class AutoPaging(
                 val pagerContainer = createPagingContainerElement()
                 pagerParent.append(pagerContainer)
 
-                val elem = AutoPagingOption.createPager(
+                val elem = PagerOption.createPager(
                     pagerContainer, pagerSetting)?.let {
                     Pair(it, pagerContainer)
                 }
@@ -256,15 +287,46 @@ class AutoPaging(
      * load backgrounds from template
      */
     fun loadContentBackgrounds(): Array<String> {
+        var backgrounds = loadContentBackgroundsRaw()
+
+        if (backgrounds == null) {
+            backgrounds = loadContentBackgrounds64()
+        }
+        return backgrounds?.let {
+            it
+        }?: emptyArray<String>()
+    }
+
+    /**
+     * load backgrounds from template
+     */
+    fun loadContentBackgroundsRaw(): Array<String>? {
         return pagingContainer?.let {
             it.querySelector("template.backgrounds")?.let {
                 val tmpl = it as HTMLTemplateElement
                 tmpl.content.firstElementChild?.let {
                     val bgContainer = it as HTMLElement
                     JSON.parse<Array<String>>(bgContainer.innerText)
-                }?: emptyArray<String>() 
-            }?: emptyArray<String>()
-        }?: emptyArray<String>() 
+                }
+            }
+        }
+    }
+
+
+    /**
+     * load backgrounds from template
+     */
+    fun loadContentBackgrounds64(): Array<String>? {
+        return pagingContainer?.let {
+            it.querySelector("template.backgrounds-b64")?.let {
+                val tmpl = it as HTMLTemplateElement
+                tmpl.content.firstElementChild?.let {
+                    val bgContainer = it as HTMLElement
+                    JSON.parse<Array<String>>(window.atob(
+                        bgContainer.innerText))
+                }
+            }
+        }
     }
    
     /**
@@ -307,9 +369,9 @@ class AutoPaging(
     }
 
     /**
-     * prepare auto play
+     * prepare play
      */
-    fun prepareAutoPlay() {
+    fun preparePlay() {
         pagingContainer?.let {
             val pagerContainer = it
             val pages = loadContentTemplates()   
@@ -331,7 +393,7 @@ class AutoPaging(
         var pagingStatus = this.pagingStatus
         
         if (pagingStatus == null) {
-            prepareAutoPlay()
+            preparePlay()
         }
         pagingStatus = this.pagingStatus!!        
         if (pagingStatus.statusPromise == null) { 
@@ -357,11 +419,15 @@ class AutoPaging(
                     val lastPager = getPager(pagingStatus0.pageIndex)
                     pagingStatus0.pageIndex++ 
                     if (loopPaging) {
-                        pagingStatus0.pageIndex %= pagingStatus0.pages.size
+                        val pageSize = pagingStatus0.pages.size
+                        val pageIdx = pagingStatus0.pageIndex % pageSize 
+                        pagingStatus0.pageIndex = pageIdx
+
                     }
                     val currentPager = getPager(pagingStatus0.pageIndex)
                     if (pagingStatus0.pageIndex < 
-                            pagingStatus0.pages.size - 1) {
+                            pagingStatus0.pages.size - 1
+                        || loopPaging) {
 
                         if (currentPager != lastPager) { 
                             currentPager?.let {
@@ -375,6 +441,84 @@ class AutoPaging(
                             it.first.page = pagingStatus0.pageIndex
                         }
                         autoPlay0()
+                    } else {
+                        pagingStatus?.let {
+                            it.statusPromise = null
+                        }
+                        currentPager?.let {
+                            it.first.page = pagingStatus0.pageIndex
+                        }
+                        resolve(Unit)
+                    }
+                }
+            }
+        }?: Promise.resolve(Unit)
+    }
+
+    /**
+     * play automatically
+     */
+    fun proceedPage(forward: Boolean): Promise<Unit> {
+        var pagingStatus = this.pagingStatus
+        
+        if (pagingStatus == null) {
+            preparePlay()
+        }
+        pagingStatus = this.pagingStatus!!        
+        if (pagingStatus.statusPromise == null) { 
+            pagingStatus.statusPromise = proceedPage0(forward)
+        }
+        return pagingStatus.statusPromise!!
+    }
+
+
+    /**
+     * proceed page
+     */
+    fun proceedPage0(
+        forward: Boolean): Promise<Unit> {
+
+        val disp = if (forward) { 1 } else { -1 }
+        return pagingStatus?.let {
+            Promise<Unit>() {
+                resolve, _ ->
+                val pagingStatus0 = it
+
+                val pagingAnim = getPager(pagingStatus0.pageIndex)?.let {
+                    if (forward) {
+                        it.first.nextPage()
+                    } else {
+                        it.first.prevPage()
+                    }
+                }?: Promise.resolve(Unit)
+
+                pagingAnim.then {
+                    val lastPager = getPager(pagingStatus0.pageIndex)
+                    pagingStatus0.pageIndex += disp
+                    if (loopPaging) {
+                        val pageSize = pagingStatus0.pages.size
+                        
+                        var pageIdx = pagingStatus0.pageIndex
+                        pageIdx += pageSize
+                        pageIdx %= pageSize 
+                        pagingStatus0.pageIndex = pageIdx
+
+                    }
+                    val currentPager = getPager(pagingStatus0.pageIndex)
+                    if (pagingStatus0.pageIndex in 
+                            0 until pagingStatus0.pages.size) {
+
+                        if (currentPager != lastPager) { 
+                            currentPager?.let {
+                                pagingContainer!!.append(it.second)
+                            }
+                            lastPager?.let {
+                                it.second.remove()
+                            }
+                        }
+                        currentPager?.let {
+                            it.first.page = pagingStatus0.pageIndex
+                        }
                     } else {
                         pagingStatus?.let {
                             it.statusPromise = null

@@ -5,12 +5,11 @@ import kotlin.collections.Map
 
 import org.w3c.dom.HTMLElement
 
-import net.oc_soft.AutoPaging
 
 /**
- * paging option
+ * pager option
  */
-class AutoPagingOption {
+class PagerOption {
 
     companion object {
 
@@ -20,7 +19,7 @@ class AutoPagingOption {
         fun createPager(
             containerElement: HTMLElement,
             optionMap: Map<String, Any>)
-            : AutoPaging.Pager? {
+            : Pager? {
             return optionMap["type"]?.let {
                 if (it is String) {
                     when (it) {
@@ -40,19 +39,12 @@ class AutoPagingOption {
          */
         fun createTurnPager(
             containerElement: HTMLElement,
-            optionMap: Map<String, Any>): AutoPaging.Pager? {
+            optionMap: Map<String, Any>): Pager? {
 
 
             val direction = TurnPage.Direction.HORIZONTAL
 
             
-            val flipOrder: Int =  optionMap["flip-order"]?.let {
-                when (it) {
-                is String -> if (it == "forward") { 1 } else { -1 }
-                is Number -> if (it.toInt() >= 0) { 1 } else { -1 }
-                else -> 1
-                } 
-            }?: 1 
             val flipStart: Int = optionMap["flip-start"]?.let {
                 when (it) {
                 is String -> if (it.toInt() >= 0) { 1 } else { -1 }
@@ -62,11 +54,16 @@ class AutoPagingOption {
             }?:1
             
             val cornerLineDefault = arrayOf(
-                arrayOf(0.05 as Number, 0.05 as Number),
-                arrayOf(0.95 as Number, 0.05 as Number))
+                arrayOf(
+                    arrayOf(0.05 as Number, 0.05 as Number),
+                    arrayOf(0.95 as Number, 0.05 as Number)),
+                arrayOf(
+                    arrayOf(0.95 as Number, 0.05 as Number),
+                    arrayOf(0.05 as Number, 0.05 as Number)))
+
             val cornerLine = optionMap["corner-line"]?.let {
                 when (it) { 
-                is Array<*> -> it as Array<Array<Number>>
+                is Array<*> -> it as Array<Array<Array<Number>>>
                 else -> cornerLineDefault
                 }
             }?: cornerLineDefault
@@ -78,15 +75,22 @@ class AutoPagingOption {
                     else -> null
                 }
             }
+
+            val loopPage: Boolean = optionMap["loop"]?.let {
+                when (it) {
+                    is String -> it.toBoolean()
+                    is Number -> it.toInt() != 0
+                    is Boolean -> it
+                    else -> false
+                }
+            }?: false
             val animationOption = Option.getAnimationOption(optionMap)           
             return if (steps != null && animationOption != null) {
-                TurnAutoPager.createPager(containerElement,
-                    direction, flipOrder, flipStart,
-                    cornerLine, steps, animationOption)
+                TurnPager.createPager(containerElement,
+                    direction, flipStart,
+                    cornerLine, steps, loopPage, animationOption)
             } else null 
         }
-
-        
     } 
 }
 

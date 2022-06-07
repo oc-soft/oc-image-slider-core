@@ -467,6 +467,13 @@ class TurnPage {
     val pageBounds: Array<DoubleArray> get() = 
         getFoldingSpaceBounds(foldingSpace!!)
 
+
+    /**
+     * if loop page is true, out of bounds page index is into from 0 to 
+     * page size
+     */
+    var loopPage = false
+
     /**
      * get page content
      */
@@ -474,6 +481,18 @@ class TurnPage {
         return if (0 <= pageIndex && pageIndex < pageCount) {
             contents[pageIndex]
         } else null  
+    }
+
+    /**
+     * get content page index
+     */
+    fun getContentPageIndex(
+        pageIndex: Int): Int {
+        return if (loopPage) {
+            ((pageIndex % pageCount) + pageCount) % pageCount
+        } else {
+            pageIndex
+        }
     }
 
     /**
@@ -879,13 +898,13 @@ class TurnPage {
             val pageIndex = this.pageIndex
             
             setBackPageContent(it,
-                0, getPageContent(pageIndex - 2))
+                0, getPageContent(getContentPageIndex(pageIndex - 2)))
             setFrontPageContent(it,
-                0, getPageContent(pageIndex)) 
+                0, getPageContent(getContentPageIndex(pageIndex))) 
             setFrontPageContent(it,
-                1, getPageContent(pageIndex + 1)) 
+                1, getPageContent(getContentPageIndex(pageIndex + 1))) 
             setBackPageContent(it,
-                1, getPageContent(pageIndex + 3))
+                1, getPageContent(getContentPageIndex(pageIndex + 3)))
             
         }
     }
@@ -1158,12 +1177,20 @@ class TurnPage {
     fun prepareFlipping(
         motionbaseParam: MotionbaseParam) {
         if (motionbaseParam.startIndex == 0) {
-            setBackFoldingPageContent(getPageContent(pageIndex))
-            setFrontFoldingPageContent(getPageContent(pageIndex - 1)) 
+            setBackFoldingPageContent(
+                getPageContent(
+                    getContentPageIndex(pageIndex)))
+            setFrontFoldingPageContent(
+                getPageContent(
+                    getContentPageIndex(pageIndex - 1))) 
 
         } else {
-            setBackFoldingPageContent(getPageContent(pageIndex + 1))
-            setFrontFoldingPageContent(getPageContent(pageIndex + 2)) 
+            setBackFoldingPageContent(
+                getPageContent(
+                    getContentPageIndex(pageIndex + 1)))
+            setFrontFoldingPageContent(
+                getPageContent(
+                    getContentPageIndex(pageIndex + 2))) 
         }
         prepaceBackShadeForFlipping(motionbaseParam)
 
