@@ -68,11 +68,39 @@ class Paging(
      */
     var pagingStatus: PagingStatus? = null
     
+    /**
+     * page index
+     */
+    var pageIndex: Int?
+        get() {
+            return pagingStatus?.let {
+                it.pageIndex
+            }
+        }
+        set(value) {
+            pagingStatus?.let {
+                val status = it
+                value?.let {
+                    status.pageIndex = it 
+                }
+            }
+        }
 
     /**
      * loop paging
      */
     var loopPaging = false
+
+
+    /**
+     * page contents loader
+     */
+    var contentsLoader: (()->Array<HTMLElement>)? = null
+
+    /**
+     * load backgrounds
+     */
+    var contentBackgroundsLoader: (()->Array<String>)? = null
 
     /**
      * load setting
@@ -192,6 +220,8 @@ class Paging(
                 }
             }
         }
+
+                
     }
 
 
@@ -208,6 +238,12 @@ class Paging(
      * detach this object from html elelements
      */
     fun unbind() {
+        pagers.forEach {
+            it?.let {
+                val (_, elem) = it
+                elem.remove()
+            }
+        }
         this.pagingContainer = null
     }
 
@@ -264,6 +300,14 @@ class Paging(
         return result
     }
 
+    /**
+     * load contents
+     */
+    fun loadContents(): Array<HTMLElement> {
+        return contentsLoader?.let {
+            it()
+        }?: loadContentTemplates()
+    }
 
     /**
      * load content templates
@@ -282,11 +326,20 @@ class Paging(
         }?: emptyArray<HTMLElement>()
     }
 
+    
+    /**
+     * load background setting 
+     */
+    fun loadContentBackgrounds(): Array<String> {
+        return contentBackgroundsLoader?.let {
+            it()
+        }?: loadContentBackgroundsByData()
+    }
 
     /**
      * load backgrounds from template
      */
-    fun loadContentBackgrounds(): Array<String> {
+    fun loadContentBackgroundsByData(): Array<String> {
         var backgrounds = loadContentBackgroundsRaw()
 
         if (backgrounds == null) {
@@ -374,7 +427,7 @@ class Paging(
     fun preparePlay() {
         pagingContainer?.let {
             val pagerContainer = it
-            val pages = loadContentTemplates()   
+            val pages = loadContents()  
             val backgrounds = loadContentBackgrounds()
             val pagingStatus = PagingStatus(pages)
             animationSequence0(pages, backgrounds)
@@ -531,6 +584,20 @@ class Paging(
                 }
             }
         }?: Promise.resolve(Unit)
+    }
+
+    /**
+     * synchronize pager index with current page
+     */
+    fun syncPageWithPager() {
+        pageIndex?.let {
+            val index = it
+            getPager(index)?.let {
+                val (pager, _) = it
+                pager.page = index
+            }
+        }
+        
     }
 }
 
