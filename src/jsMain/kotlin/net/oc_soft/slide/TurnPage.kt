@@ -1,6 +1,7 @@
 package net.oc_soft.slide
 
 import kotlin.js.JSON
+import kotlinx.js.ReadonlyArray
 
 import kotlin.math.pow
 import kotlin.collections.MutableList
@@ -15,6 +16,8 @@ import org.w3c.dom.url.URL
 
 import org.w3c.dom.get
 import org.w3c.dom.set
+import org.w3c.dom.ResizeObserver
+import org.w3c.dom.ResizeObserverEntry
 
 import net.oc_soft.animation.PointsAnimation
 import net.oc_soft.animation.QubicBezier
@@ -162,11 +165,6 @@ class TurnPage {
         
             return Bezier(line[0], p1, p2, line[1])
         }
-        
-
-
-       
-
         /**
          * create points on bezier curve
          */
@@ -183,8 +181,6 @@ class TurnPage {
             points.add(bezier.calcPointAt(1.0))
             return points.toTypedArray()
         }
-
-
 
         /**
          * turn page animator
@@ -404,6 +400,13 @@ class TurnPage {
 
 
     /**
+     * front and back folding element
+     */
+    val foldingElements: Array<HTMLElement> get() = arrayOf(
+        frontFoldingElement,
+        backFoldingElement)
+
+    /**
      * visibility of folding element
      */
     var visibleFoldingElement: Boolean  
@@ -428,6 +431,31 @@ class TurnPage {
                     it.style.display = displayOption
                 }
             }
+        }
+
+
+    /**
+     * front spread page elements
+     */
+    val frontSpreadPageElements: Array<HTMLElement>
+        get() {
+            return arrayOf(
+                foldingSpace!!.querySelector(".first.front")
+                    as HTMLElement,
+                foldingSpace!!.querySelector(".second.front")
+                    as HTMLElement)
+        }
+
+    /**
+     * back spread page elements
+     */
+    val backSpreadPageElements: Array<HTMLElement>
+        get() {
+            return arrayOf(
+                foldingSpace!!.querySelector(".first.back")
+                    as HTMLElement,
+                foldingSpace!!.querySelector(".second.back")
+                    as HTMLElement)
         }
 
 
@@ -466,13 +494,47 @@ class TurnPage {
      */
     val pageBounds: Array<DoubleArray> get() = 
         getFoldingSpaceBounds(foldingSpace!!)
-
-
     /**
      * if loop page is true, out of bounds page index is into from 0 to 
      * page size
      */
     var loopPage = false
+
+
+    /**
+     * observe root folding space resizing
+     */
+    var resizeObserver: ResizeObserver? = null
+
+
+    /**
+     * handle resize  root content
+     */
+    fun handleResizeFoldingSpace(
+        entries: ReadonlyArray<ResizeObserverEntry>,
+        resizeObserver: ResizeObserver) {
+        arrayOf(
+            frontSpreadPageElements,
+            backSpreadPageElements).forEach { 
+            syncSpreadPagesGeometryWithFoldingSpace(
+                foldingSpace!!,
+                direction,
+                it)
+        }
+             
+        syncFoldingElementGeometryWithFoldingSpace(
+            foldingSpace!!, 
+            direction,
+            foldingElements)
+
+        syncShadeContainerGeometryWithFoldingSpace(
+            foldingSpace!!,
+            direction, backShadeElement)
+    } 
+
+
+
+      
 
     /**
      * get page content
@@ -648,17 +710,14 @@ class TurnPage {
         container: HTMLElement,
         direction: Direction) {
 
-
         val pageParams = arrayOf(
             arrayOf(0, "back"), 
             arrayOf(5, "front"))
 
         pageParams.forEach {
-            // val zIndex = it[0].toString() 
             val className = it[1] as String
             val pages = createSpreadPageElements(container, direction)
             pages.forEach {
-                // it.style.zIndex = zIndex
                 it.classList.add(className)
                 container.append(it)
             }
@@ -676,6 +735,35 @@ class TurnPage {
         container.style.overflowX = "hidden"
         container.style.overflowY = "hidden"
         foldingSpace = container
+        val resizeObserveCB: 
+            (ReadonlyArray<ResizeObserverEntry>, ResizeObserver)->Unit = {
+            entries, observer ->
+            handleResizeFoldingSpace(entries, observer)
+        }
+
+        val resizeObserver = ResizeObserver(resizeObserveCB)
+
+        resizeObserver.observe(container)
+        
+        this.resizeObserver = resizeObserver
+        
+    }
+
+    /**
+     * detach this object from folding space element
+     */
+    fun detachFoldingSpace() {
+        foldingSpace?.let {
+            val rootContainer = it
+            resizeObserver?.let {
+                it.unobserve(rootContainer)
+                resizeObserver = null
+            }
+            frontFoldingElement.remove()
+            backFoldingElement.remove()
+            foldingSpace = null
+        }
+        
     }
 
     /**
@@ -685,40 +773,48 @@ class TurnPage {
         container: HTMLElement,
         direction :Direction): Array<HTMLElement> {
 
-        val pageSize = calcPageSize(container, direction)
 
-        val pageParams = if (direction == Direction.HORIZONTAL) {
-            arrayOf(
-                arrayOf(
-                    "first",
-                    doubleArrayOf(0.0, 0.0)),
-                arrayOf(
-                    "second",
-                    doubleArrayOf(pageSize[0], 0.0)))
-        } else {
-            arrayOf(
-                arrayOf(
-                    "first",
-                    doubleArrayOf(0.0, 0.0)),
-                arrayOf(
-                    "second",
-                    doubleArrayOf(0.0, pageSize[1])))
-        }
-         
-        return Array<HTMLElement>(pageParams.size) {
-            val pageClass = pageParams[it][0] as String
-            val pageOffset = pageParams[it][1] as DoubleArray
+        val pageParams = arrayOf("first", "second")
+                             
+        val result = Array<HTMLElement>(pageParams.size) {
+            val pageClass = pageParams[it]
             val elem = document.createElement("div") as HTMLElement
             setupFoldingElementStyle(elem)
             elem.classList.add(pageClass)
+            elem
+        }
+
+        syncSpreadPagesGeometryWithFoldingSpace(
+            container, direction, result) 
+        return result
+    }
+
+    /**
+     * synchronize spread pages geometry with folding space
+     */
+    fun syncSpreadPagesGeometryWithFoldingSpace(
+        foldingSpace: HTMLElement,
+        direction: Direction,
+        spreadPages: Array<HTMLElement>) {
+        val pageSize = calcPageSize(foldingSpace, direction)
+        val pageParams = if (direction == Direction.HORIZONTAL) {
+            arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(pageSize[0], 0.0))
+        } else {
+            arrayOf(
+                doubleArrayOf(0.0, 0.0),
+                doubleArrayOf(0.0, pageSize[1]))
+        } 
+        pageParams.forEachIndexed {
+            index, translation ->    
+            val elem = spreadPages[index]
             elem.style.width = "${pageSize[0]}px"
             elem.style.height = "${pageSize[1]}px"
             elem.style.transform = 
-                "translate(${pageOffset[0]}px, ${pageOffset[1]}px)"
-            elem
+                "translate(${translation[0]}px, ${translation[1]}px)"
         }
     }
-
 
     /**
      * create folding elements
@@ -727,16 +823,9 @@ class TurnPage {
         container: HTMLElement,
         direction: Direction): Array<HTMLElement> {
 
-
-        val pageSize = calcPageSize(container, direction)
-
-        val maskSize = getFoldingElementSize(
-            container, direction)
-
-
         val classNames = arrayOf("back", "front")
         
-        return Array<HTMLElement>(classNames.size) {
+        val result = Array<HTMLElement>(classNames.size) {
             val additionalClassName = classNames[it]
             val elem = document.createElement("div") as HTMLElement
             setupFoldingElementStyle(elem)
@@ -746,16 +835,11 @@ class TurnPage {
             pageContainer.classList.add("content")
             setupFoldingElementStyle(pageContainer)
 
-            pageContainer.style.width = "${pageSize[0]}px"
-            pageContainer.style.height = "${pageSize[1]}px"
-
             elem.append(pageContainer)
 
             val shadeContainer = document.createElement("div") as HTMLElement
             shadeContainer.classList.add("shade")
             setupFoldingElementStyle(shadeContainer)
-            shadeContainer.style.width = "${pageSize[0]}px"
-            shadeContainer.style.height = "${pageSize[1]}px"
 
             elem.append(shadeContainer)
 
@@ -763,11 +847,38 @@ class TurnPage {
             elem.classList.add("folding")
             elem.classList.add("$additionalClassName")
 
-                // shadow gradient container
-            elem.style.width = "${maskSize}px"
-            elem.style.height = "${maskSize}px"
             elem.style.display = "none"
             elem
+        }
+        syncFoldingElementGeometryWithFoldingSpace(
+            container, direction, result)
+        return result
+    }
+
+
+    /**
+     * synchronize folding element geometry with folding space
+     */
+    fun syncFoldingElementGeometryWithFoldingSpace(
+        container: HTMLElement,
+        direction: Direction,
+        foldingElements: Array<HTMLElement>) {
+        val pageSize = calcPageSize(container, direction)
+
+        val maskSize = getFoldingElementSize(
+            container, direction)
+
+        foldingElements.forEach {
+            val pageContainer = it.querySelector(".content") as HTMLElement
+            pageContainer.style.width = "${pageSize[0]}px"
+            pageContainer.style.height = "${pageSize[1]}px"
+
+            val shadeContainer = it.querySelector(".shade") as HTMLElement
+            shadeContainer.style.width = "${pageSize[0]}px"
+            shadeContainer.style.height = "${pageSize[1]}px"
+
+            it.style.width = "${maskSize}px"
+            it.style.height = "${maskSize}px"
         }
     }
 
@@ -779,15 +890,25 @@ class TurnPage {
         direction: Direction): HTMLElement {
         val result = document.createElement("div") as HTMLElement
 
-        val pageSize = calcPageSize(container, direction)
-
         setupFoldingElementStyle(result)
         result.classList.add("shade-container")
-        result.style.width = "${pageSize[0]}px"
-        result.style.height = "${pageSize[1]}px"
+        syncShadeContainerGeometryWithFoldingSpace(
+            container, direction, result)
         result.style.display = "none"
         return result
     }
+
+    /**
+     * synchronize shade container geometry with folding space
+     */
+    fun syncShadeContainerGeometryWithFoldingSpace(
+        container: HTMLElement,
+        direction: Direction,
+        shadeContainer: HTMLElement) {
+        val pageSize = calcPageSize(container, direction)
+        shadeContainer.style.width = "${pageSize[0]}px"
+        shadeContainer.style.height = "${pageSize[1]}px"
+    } 
 
     /**
      * calculate initial
@@ -965,9 +1086,6 @@ class TurnPage {
             it as HTMLElement
         }
     }
-
-
-    
 
     /**
      * folding page container
@@ -1192,14 +1310,14 @@ class TurnPage {
                 getPageContent(
                     getContentPageIndex(pageIndex + 2))) 
         }
-        prepaceBackShadeForFlipping(motionbaseParam)
+        prepareBackShadeForFlipping(motionbaseParam)
 
     }
 
     /**
      * prepare back shade for flipping
      */
-    fun prepaceBackShadeForFlipping(
+    fun prepareBackShadeForFlipping(
         motionbaseParam: MotionbaseParam) {
         val pageSize = calcPageSize(foldingSpace!!, direction)
         val backShade = backShadeElement

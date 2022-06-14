@@ -11,8 +11,10 @@ import org.w3c.dom.HTMLElement
  */
 class PagerOption {
 
+    /**
+     * class instance
+     */
     companion object {
-
         /**
          * update option with json setting
          */
@@ -58,8 +60,8 @@ class PagerOption {
                     arrayOf(0.05 as Number, 0.05 as Number),
                     arrayOf(0.95 as Number, 0.05 as Number)),
                 arrayOf(
-                    arrayOf(0.95 as Number, 0.05 as Number),
-                    arrayOf(0.05 as Number, 0.05 as Number)))
+                    arrayOf(0.5 as Number, -0.05 as Number),
+                    arrayOf(0.95 as Number, -0.05 as Number)))
 
             val cornerLine = optionMap["corner-line"]?.let {
                 when (it) { 

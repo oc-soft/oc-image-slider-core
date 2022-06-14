@@ -172,8 +172,8 @@ class TurnPager {
                  */
                 override fun nextPage(): Promise<Unit> {
                     return proceedPage(turnPage, 
-                        0,
-                        motionbaseParams[0],
+                        1,
+                        motionbaseParams[1],
                         initPointsAnimation, 
                         animatingStatus)
                 }
@@ -182,11 +182,18 @@ class TurnPager {
                  */
                 override fun prevPage(): Promise<Unit> {
                     return proceedPage(turnPage, 
-                        1,
-                        motionbaseParams[1],
+                        0,
+                        motionbaseParams[0],
                         initPointsAnimation, 
                         animatingStatus)
                 }
+                /**
+                 * release all attached resource
+                 */
+                override fun destroy() {
+                    turnPage.detachFoldingSpace()
+                }
+
             }
         }
         /**

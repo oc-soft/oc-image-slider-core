@@ -240,7 +240,8 @@ class Paging(
     fun unbind() {
         pagers.forEach {
             it?.let {
-                val (_, elem) = it
+                val (pager, elem) = it
+                pager.destroy() 
                 elem.remove()
             }
         }
@@ -518,10 +519,16 @@ class Paging(
             preparePlay()
         }
         pagingStatus = this.pagingStatus!!        
-        if (pagingStatus.statusPromise == null) { 
-            pagingStatus.statusPromise = proceedPage0(forward)
-        }
-        return pagingStatus.statusPromise!!
+        
+        val statusPromise = pagingStatus.statusPromise
+        return if (statusPromise == null) { 
+            val statusPromise0 = proceedPage0(forward).then {
+                pagingStatus.statusPromise = null    
+                Unit
+            }
+            pagingStatus.statusPromise = statusPromise0
+            statusPromise0
+        } else statusPromise
     }
 
 
@@ -579,9 +586,10 @@ class Paging(
                         currentPager?.let {
                             it.first.page = pagingStatus0.pageIndex
                         }
-                        resolve(Unit)
+
                     }
                 }
+                resolve(Unit)
             }
         }?: Promise.resolve(Unit)
     }

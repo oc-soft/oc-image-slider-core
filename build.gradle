@@ -23,6 +23,14 @@ String.metaClass.snakeToCamel = {
    replaceAll('(_|-)([a-z])') { it[2].toUpperCase() }
 }
 
+/**
+ * create kotlin wrapper package name
+ */
+String kotlinw(String target, String version) {
+    return "org.jetbrains.kotlin-wrappers:kotlin-$target:$version"
+}
+
+
 ext.appSettings = [
     'main': [
         compile: ['js' ],
@@ -109,9 +117,10 @@ kotlin {
     }
 
     sourceSets {
-        
         jsMain {
             dependencies {
+                implementation kotlinw('browser', '0.0.1-pre.345')
+                implementation kotlinw('extensions', '1.0.1-pre.345')
                 implementation kotlin('stdlib-js')
             }
         }
