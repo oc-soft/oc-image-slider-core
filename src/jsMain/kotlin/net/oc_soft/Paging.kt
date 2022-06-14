@@ -81,7 +81,11 @@ class Paging(
             pagingStatus?.let {
                 val status = it
                 value?.let {
-                    status.pageIndex = it 
+                    if (status.pageIndex != it) {
+                        status.pageIndex = it
+                        syncPageWithPager()
+                        notifyEvent("page-index")
+                    }
                 }
             }
         }
@@ -102,6 +106,15 @@ class Paging(
      */
     var contentBackgroundsLoader: (()->Array<String>)? = null
 
+
+
+    /**
+     * event listener
+     */
+    val eventListeners: 
+        MutableMap<String?, MutableList<(String, Paging)->Unit>> =
+            HashMap<String?, MutableList<(String, Paging)->Unit>>()
+        
     /**
      * load setting
      */
@@ -606,6 +619,43 @@ class Paging(
             }
         }
         
+    }
+
+    /**
+     * add event listener
+     */
+    fun addEventListener(eventType: String?, 
+        eventListener: (String, Paging)->Unit) {
+        
+        var listeners = eventListeners[eventType]
+        if (listeners == null) {
+            listeners = ArrayList<(String, Paging)->Unit>()
+            eventListeners[eventType] = listeners!!
+        }
+        listeners?.add(eventListener)
+    }
+
+    /**
+     * remove event listener
+     */
+    fun removeEventListener(eventType: String?, 
+        eventListener: (String, Paging)->Unit) {
+        eventListeners[eventType]?.remove(eventListener)
+    }
+
+
+    /**
+     * notify event to listeners
+     */
+    fun notifyEvent(
+        eventType: String) {
+        val listersArray = arrayOf(
+            eventListeners[null],
+            eventListeners[eventType]).forEach {
+            it?.let {
+                it.forEach { it(eventType, this) }
+            }
+        }
     }
 }
 
