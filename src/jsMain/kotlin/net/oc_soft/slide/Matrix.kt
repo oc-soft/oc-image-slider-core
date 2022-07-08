@@ -261,6 +261,25 @@ class Matrix(
                     this[it, 2] * vector[2]
         }
     }
+
+
+    /**
+     *  convert css string
+     */
+    fun toCssString(tolerance: Double): String {
+
+        val components = doubleArrayOf(a, b, c, d, tx, ty)
+
+        for (idx in components.indices) {
+            var value = components[idx]
+            if (kotlin.math.abs(value) <= tolerance) {
+                value = 0.0
+            }
+            components[idx] = value
+        } 
+        return "matrix(${components.joinToString()})"
+
+    }
 }
 
 // vi: se ts=4 sw=4 et:

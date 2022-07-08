@@ -57,6 +57,11 @@ class PointsAnimation(
     val elements: MutableList<Element> = ArrayList<Element>()
 
     /**
+     * animation id
+     */
+    var animationId: Int? = null
+
+    /**
      * add points moving from 0 to point.size
      */
     fun add(
@@ -65,7 +70,7 @@ class PointsAnimation(
         begin: ()->Unit,
         finish: ()->Unit,
         duration: Double,
-        rateToIndex: (Double)->Double,        
+        rateToIndex: (Double)->Double,
         delay: Double = 0.0,
         endDelay: Double = 0.0) {
         add(Element(points, animate, begin, finish,
@@ -84,15 +89,29 @@ class PointsAnimation(
      * start to move points
      */
     fun start() {
-        val animating = Animating()
-        var requestHandler: ((Double)->Unit)? = null
-        requestHandler = {
-            timeToMove(it, animating)
-            if (elements.size > 0) {
-                window.requestAnimationFrame(requestHandler!!)
-            }
-        } 
-        window.requestAnimationFrame(requestHandler) 
+        if (animationId == null) {
+            val animating = Animating()
+            var requestHandler: ((Double)->Unit)? = null
+            requestHandler = {
+                timeToMove(it, animating)
+                if (elements.size > 0) {
+                    animationId = window.requestAnimationFrame(requestHandler!!)
+                } else {
+                    animationId = null
+                }
+            } 
+            animationId = window.requestAnimationFrame(requestHandler) 
+        }
+    }
+
+    /**
+     * stop to move points
+     */
+    fun stop() {
+        animationId?.let {
+            window.cancelAnimationFrame(it)
+            animationId = null
+        }
     }
 
     /**

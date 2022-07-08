@@ -44,7 +44,11 @@ class Paging(
         /**
          * paging status promise
          */
-        var statusPromise: Promise<Unit>? = null)
+        var statusPromise: Promise<Unit>? = null,
+        /**
+         * operate to stop paging
+         */
+        var stopPaging: Boolean = false)
 
     /**
      * pagers
@@ -93,13 +97,21 @@ class Paging(
     /**
      * loop paging
      */
-    var loopPaging = false
+    var loopPaging : Boolean = false
+        set(value) {
+            field = value
+            syncPagersWithLoopPaging()
+        }
 
+    /**
+     * auto paging direction
+     */
+    var autoPagingDirection: PagingDirection = PagingDirection.FORWARD
 
     /**
      * page contents loader
      */
-    var contentsLoader: (()->Array<HTMLElement>)? = null
+    var contentsLoader: ((HTMLElement)->Array<HTMLElement>)? = null
 
     /**
      * load backgrounds
@@ -232,9 +244,17 @@ class Paging(
                 else -> this.loopPaging
                 }
             }
-        }
 
-                
+            val dirIdx = it["auto-direction"]?.let {
+                when (it) {
+                    is String -> it.toInt()
+                    is Number -> it.toInt()
+                    else -> 1
+                }
+            }?: 1
+
+            autoPagingDirection = PagingDirection.intToDirection(dirIdx)
+        }
     }
 
 
@@ -282,8 +302,8 @@ class Paging(
                 }
                 pagers.add(elem) 
                 pagerContainer.remove()
-
             }
+            syncPagersWithLoopPaging()
         }
     }
 
@@ -317,9 +337,10 @@ class Paging(
     /**
      * load contents
      */
-    fun loadContents(): Array<HTMLElement> {
+    fun loadContents(
+        pagerContainer: HTMLElement): Array<HTMLElement> {
         return contentsLoader?.let {
-            it()
+            it(pagerContainer)
         }?: loadContentTemplates()
     }
 
@@ -441,7 +462,7 @@ class Paging(
     fun preparePlay() {
         pagingContainer?.let {
             val pagerContainer = it
-            val pages = loadContents()  
+            val pages = loadContents(pagerContainer)  
             val backgrounds = loadContentBackgrounds()
             val pagingStatus = PagingStatus(pages)
             animationSequence0(pages, backgrounds)
@@ -477,25 +498,40 @@ class Paging(
             Promise<Unit>() {
                 resolve, _ ->
                 val pagingStatus0 = it
+                val direction = autoPagingDirection
 
-                val pagingAnim = getPager(pagingStatus0.pageIndex)?.let {
-                    it.first.nextPage()
-                }?: Promise.resolve(Unit)
+                var doPaging = if (loopPaging) {
 
-                pagingAnim.then {
-                    val lastPager = getPager(pagingStatus0.pageIndex)
-                    pagingStatus0.pageIndex++ 
-                    if (loopPaging) {
-                        val pageSize = pagingStatus0.pages.size
-                        val pageIdx = pagingStatus0.pageIndex % pageSize 
-                        pagingStatus0.pageIndex = pageIdx
+                    true
+                } else {
+                    val nextIdx = pagingStatus0.pageIndex + 
+                        direction.displacement
+                    nextIdx in pagingStatus0.pages.indices
+                }
+                if (doPaging && pagingStatus0.stopPaging) {
+                    doPaging = false
+                }
+                
+                if (doPaging) {
+                    val pagingAnim = getPager(pagingStatus0.pageIndex)?.let {
+                        val (pager, _) = it
+                        if (direction == PagingDirection.FORWARD) {
+                            pager.nextPage()
+                        } else {
+                            pager.prevPage() 
+                        }
+                    }?: Promise.resolve(Unit)
 
-                    }
-                    val currentPager = getPager(pagingStatus0.pageIndex)
-                    if (pagingStatus0.pageIndex < 
-                            pagingStatus0.pages.size - 1
-                        || loopPaging) {
+                    pagingAnim.then {
+                        val lastPager = getPager(pagingStatus0.pageIndex)
 
+                        pagingStatus0.pageIndex += direction.displacement
+                        if (loopPaging) {
+                            val pageSize = pagingStatus0.pages.size
+                            val pageIdx = pagingStatus0.pageIndex % pageSize 
+                            pagingStatus0.pageIndex = pageIdx
+                        }
+                        val currentPager = getPager(pagingStatus0.pageIndex)
                         if (currentPager != lastPager) { 
                             currentPager?.let {
                                 pagingContainer!!.append(it.second)
@@ -508,15 +544,12 @@ class Paging(
                             it.first.page = pagingStatus0.pageIndex
                         }
                         autoPlay0()
-                    } else {
-                        pagingStatus?.let {
-                            it.statusPromise = null
-                        }
-                        currentPager?.let {
-                            it.first.page = pagingStatus0.pageIndex
-                        }
-                        resolve(Unit)
                     }
+                } else {
+                    pagingStatus?.let {
+                        it.statusPromise = null
+                    }
+                    resolve(Unit)
                 }
             }
         }?: Promise.resolve(Unit)
@@ -557,52 +590,62 @@ class Paging(
                 resolve, _ ->
                 val pagingStatus0 = it
 
-                val pagingAnim = getPager(pagingStatus0.pageIndex)?.let {
-                    if (forward) {
-                        it.first.nextPage()
-                    } else {
-                        it.first.prevPage()
-                    }
-                }?: Promise.resolve(Unit)
-
-                pagingAnim.then {
-                    val lastPager = getPager(pagingStatus0.pageIndex)
-                    pagingStatus0.pageIndex += disp
-                    if (loopPaging) {
-                        val pageSize = pagingStatus0.pages.size
-                        
-                        var pageIdx = pagingStatus0.pageIndex
-                        pageIdx += pageSize
-                        pageIdx %= pageSize 
-                        pagingStatus0.pageIndex = pageIdx
-
-                    }
-                    val currentPager = getPager(pagingStatus0.pageIndex)
-                    if (pagingStatus0.pageIndex in 
-                            0 until pagingStatus0.pages.size) {
-
-                        if (currentPager != lastPager) { 
-                            currentPager?.let {
-                                pagingContainer!!.append(it.second)
-                            }
-                            lastPager?.let {
-                                it.second.remove()
-                            }
-                        }
-                        currentPager?.let {
-                            it.first.page = pagingStatus0.pageIndex
-                        }
-                    } else {
-                        pagingStatus?.let {
-                            it.statusPromise = null
-                        }
-                        currentPager?.let {
-                            it.first.page = pagingStatus0.pageIndex
-                        }
-
-                    }
+                val doPaging = if (loopPaging) {
+                    true
+                } else {
+                    val nextIdx = pagingStatus0.pageIndex + disp
+                    nextIdx in pagingStatus0.pages.indices
                 }
-                resolve(Unit)
+                if (doPaging) {
+                    val pagingAnim = getPager(pagingStatus0.pageIndex)?.let {
+                        if (forward) {
+                            it.first.nextPage()
+                        } else {
+                            it.first.prevPage()
+                        }
+                    }?: Promise.resolve(Unit)
+
+                    pagingAnim.then {
+                        val lastPager = getPager(pagingStatus0.pageIndex)
+                        pagingStatus0.pageIndex += disp
+                        if (loopPaging) {
+                            val pageSize = pagingStatus0.pages.size
+                            
+                            var pageIdx = pagingStatus0.pageIndex
+                            pageIdx += pageSize
+                            pageIdx %= pageSize 
+                            pagingStatus0.pageIndex = pageIdx
+
+                        }
+                        val currentPager = getPager(pagingStatus0.pageIndex)
+                        if (pagingStatus0.pageIndex in 
+                                0 until pagingStatus0.pages.size) {
+
+                            if (currentPager != lastPager) { 
+                                currentPager?.let {
+                                    pagingContainer!!.append(it.second)
+                                }
+                                lastPager?.let {
+                                    it.second.remove()
+                                }
+                            }
+                            currentPager?.let {
+                                it.first.page = pagingStatus0.pageIndex
+                            }
+                        } else {
+                            pagingStatus?.let {
+                                it.statusPromise = null
+                            }
+                            currentPager?.let {
+                                it.first.page = pagingStatus0.pageIndex
+                            }
+
+                        }
+                        resolve(Unit)
+                    }
+                } else {
+                    resolve(Unit)
+                }
             }
         }?: Promise.resolve(Unit)
     }
@@ -641,6 +684,17 @@ class Paging(
     fun removeEventListener(eventType: String?, 
         eventListener: (String, Paging)->Unit) {
         eventListeners[eventType]?.remove(eventListener)
+    }
+
+    /**
+     * synchronize pagers with loop paging setting
+     */
+    fun syncPagersWithLoopPaging() {
+        pagers.forEach {
+            it?.let {
+                it.first.loopPage = this.loopPaging
+            }
+        }  
     }
 
 

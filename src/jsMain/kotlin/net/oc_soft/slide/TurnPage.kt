@@ -170,15 +170,37 @@ class TurnPage {
          */
         fun createBezierPoints(
             bezier: Bezier,
-            steps: Int): Array<DoubleArray> {
+            steps: Int,
+            startInterpolation: DoubleArray = doubleArrayOf(1.0, 1.0),
+            endInterpolation: DoubleArray = doubleArrayOf(0.0, 0.0)
+            ): Array<DoubleArray> {
 
             val points = ArrayList<DoubleArray>()
+            
             points.add(bezier.calcPointAt(0.0)) 
             for (idx in 1 until steps) {
                 points.add(bezier.calcPointAt(
                     idx.toDouble() / steps.toDouble()))
             }
             points.add(bezier.calcPointAt(1.0))
+
+            val startPoints = arrayOf(points[0], points[1])
+            val endPoints = arrayOf(
+                points[points.lastIndex - 1], 
+                points[points.lastIndex])
+
+            fun DoubleArray.interpolate(
+                pt: DoubleArray, t: DoubleArray): DoubleArray {
+                return doubleArrayOf(
+                    this[0] * t[0] + pt[0] * (1.0 - t[0]), 
+                    this[1] * t[1] + pt[1] * (1.0 - t[1]))
+            }
+            
+            points[0] = startPoints[0].interpolate(
+                startPoints[1], startInterpolation)
+            points[points.lastIndex] = endPoints[0].interpolate(
+                endPoints[1], endInterpolation)
+            
             return points.toTypedArray()
         }
 
@@ -375,6 +397,12 @@ class TurnPage {
     val contents: MutableList<HTMLElement> = ArrayList<HTMLElement>()
 
     /**
+     * folding contents
+     */
+    val foldingContents: MutableList<HTMLElement> = ArrayList<HTMLElement>()
+
+
+    /**
      * page count
      */
     val pageCount: Int get() = contents.size
@@ -414,22 +442,26 @@ class TurnPage {
   
             val frontFoldingElement = this.frontFoldingElement
 
-            return frontFoldingElement.style.display?.let {
-                it == "block"
+            return frontFoldingElement.style.visibility?.let {
+                it != "hidden"
             }?: true
         }
         set(value) {
             if (value != visibleFoldingElement) {
-                val displayOption = if (value) {
-                    "block"
+                if (value) {
+                    arrayOf(
+                        this.frontFoldingElement,
+                        this.backFoldingElement).forEach {
+                        it.style.removeProperty("visibility")
+                    }
                 } else {
-                    "none"
+                    arrayOf(
+                        this.frontFoldingElement,
+                        this.backFoldingElement).forEach {
+                        it.style.visibility = "hidden"
+                    }
                 } 
-                arrayOf(
-                    this.frontFoldingElement,
-                    this.backFoldingElement).forEach {
-                    it.style.display = displayOption
-                }
+
             }
         }
 
@@ -502,10 +534,20 @@ class TurnPage {
 
 
     /**
+     * floating value tolerance value
+     */
+    var torelance: Double = 1e-5
+
+    /**
      * observe root folding space resizing
      */
     var resizeObserver: ResizeObserver? = null
 
+
+    /**
+     * folding content updater procedure
+     */
+    var foldingContentUpdater: ((MotionbaseParam)->Unit)? = null
 
     /**
      * handle resize  root content
@@ -532,10 +574,6 @@ class TurnPage {
             direction, backShadeElement)
     } 
 
-
-
-      
-
     /**
      * get page content
      */
@@ -544,7 +582,14 @@ class TurnPage {
             contents[pageIndex]
         } else null  
     }
-
+    /**
+     * get folding page content
+     */
+    fun getFoldingPageContent(pageIndex: Int): HTMLElement? {
+        return if (0 <= pageIndex && pageIndex < pageCount) {
+            contents[pageIndex]
+        } else null  
+    }
     /**
      * get content page index
      */
@@ -588,7 +633,7 @@ class TurnPage {
     }
 
     /**
-     * reate motion base parameter
+     * create motion base parameter
      */
     fun createMotionbaseParam(
         point: DoubleArray): MotionbaseParam {
@@ -600,7 +645,7 @@ class TurnPage {
 
     
     /**
-     * reate motion base parameter
+     * create motion base parameter
      */
     fun createMotionbaseParam(
         point: DoubleArray,
@@ -654,9 +699,7 @@ class TurnPage {
 
         val alpha = kotlin.math.atan2(rel[0], rel[1])
 
-        println("endPoint: $endPoint")
         val middle = doubleArrayOf(endPoint[0] - rel[0] / 2.0, rel[1] / 2.0 )
-        println("middle: $middle")
 
         val gamma = alpha - kotlin.math.atan2(middle[1], middle[0])
        
@@ -688,9 +731,13 @@ class TurnPage {
         elements: Array<HTMLElement>) {
 
         contents.clear()
+        foldingContents.clear() 
         
         elements.forEach {
+            val foldingElement = it.cloneNode(true) as HTMLElement
+            foldingElement.removeAttribute("id")
             contents.add(it)
+            foldingContents.add(foldingElement)
         }
     }
 
@@ -847,7 +894,8 @@ class TurnPage {
             elem.classList.add("folding")
             elem.classList.add("$additionalClassName")
 
-            elem.style.display = "none"
+            // elem.style.display = "none"
+            elem.style.visibility = "hidden"
             elem
         }
         syncFoldingElementGeometryWithFoldingSpace(
@@ -1289,30 +1337,32 @@ class TurnPage {
         return result
     }
 
+
+    var foldingCount: Int = 0
     /**
      * prepare flipping motion
      */
     fun prepareFlipping(
         motionbaseParam: MotionbaseParam) {
-        if (motionbaseParam.startIndex == 0) {
-            setBackFoldingPageContent(
-                getPageContent(
-                    getContentPageIndex(pageIndex)))
-            setFrontFoldingPageContent(
-                getPageContent(
-                    getContentPageIndex(pageIndex - 1))) 
 
-        } else {
-            setBackFoldingPageContent(
-                getPageContent(
-                    getContentPageIndex(pageIndex + 1)))
-            setFrontFoldingPageContent(
-                getPageContent(
-                    getContentPageIndex(pageIndex + 2))) 
+        val contentUpdater = Array<((MotionbaseParam)->Unit)?>(2) { null } 
+
+        contentUpdater[0] = {
+            updateFoldingContents(it)
+            visibleFoldingElement = true
+            foldingContentUpdater = contentUpdater[1] 
         }
-        prepareBackShadeForFlipping(motionbaseParam)
+        contentUpdater[1] = {
+            noUpdateFoldingContents(it)
+        }
+        foldingContentUpdater = contentUpdater[0]
 
+        foldingCount = 0
+        prepareBackShadeForFlipping(motionbaseParam)
     }
+
+
+
 
     /**
      * prepare back shade for flipping
@@ -1337,11 +1387,56 @@ class TurnPage {
     }
 
     /**
+     * update folding contents
+     */
+    fun updateFoldingContents(
+        motionbaseParam: MotionbaseParam) {
+        if (motionbaseParam.startIndex == 0) {
+            setBackFoldingPageContent(
+                getFoldingPageContent(
+                    getContentPageIndex(pageIndex)))
+            setFrontFoldingPageContent(
+                getFoldingPageContent(
+                    getContentPageIndex(pageIndex - 1))) 
+
+        } else {
+            setBackFoldingPageContent(
+                getFoldingPageContent(
+                    getContentPageIndex(pageIndex + 1)))
+            setFrontFoldingPageContent(
+                getFoldingPageContent(
+                    getContentPageIndex(pageIndex + 2))) 
+        }
+    }
+
+    /**
+     * update folding contents
+     */
+    fun noUpdateFoldingContents(
+        motionbaseParam: MotionbaseParam) {
+    }
+
+    /**
      * set flipping status at a point
      */
     fun flippingPage(
         point: DoubleArray, 
         motionbaseParam: MotionbaseParam) {
+
+        // if (foldingCount < 3) {
+            flippingPage0(point, motionbaseParam)
+        // }
+    }
+
+
+    /**
+     * set flipping status at a point
+     */
+    fun flippingPage0(
+        point: DoubleArray, 
+        motionbaseParam: MotionbaseParam) {
+
+
         val baseLine = motionbaseParam.linesParam.baseLine
         val startPoint = baseLine[motionbaseParam.startIndex]
 
@@ -1380,8 +1475,10 @@ class TurnPage {
         val frontFoldingElement = this.frontFoldingElement
         val backFoldingElement = this.backFoldingElement
 
-        frontFoldingElement.style.transform = transform1.css
-        backFoldingElement.style.transform = transform1.css
+        val transform1Css = transform1.toCssString(torelance)
+        
+        frontFoldingElement.style.transform = transform1Css
+        backFoldingElement.style.transform = transform1Css
 
         val frontPageContainer = getFrontFoldingPageContainer()
         val backPageContainer = getBackFoldingPageContainer()
@@ -1390,11 +1487,8 @@ class TurnPage {
         val backShadeContainer = getBackFoldingShadeContainer()
 
 
-
-
         val pageRt = -fcr 
         val frontPageTr = point - fcbLoc
-
 
         updatePageContainerCornerLocation(
             frontPageContainer, motionbaseParam)
@@ -1431,10 +1525,15 @@ class TurnPage {
         backPageContainer.style.transform = "$bRotStr0 $bTrsStr"
         backShadeContainer.style.transform = "$bRotStr0 $bTrsStr"
 
-        visibleFoldingElement = true
+
         
         flippingShade0(point, motionbaseParam, fcr0, fcr, fcbLoc)
         flippingShade1(point, motionbaseParam, fcr0, fcr, fcbLoc)
+
+        foldingContentUpdater?.let { it(motionbaseParam) }
+
+
+        foldingCount++
     }
 
 

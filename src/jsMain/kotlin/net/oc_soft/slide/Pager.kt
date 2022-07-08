@@ -20,6 +20,12 @@ interface Pager {
      */
     var page: Int
 
+
+    /**
+     * endless page setting
+     */
+    var loopPage: Boolean
+
     /**
      * next page
      */

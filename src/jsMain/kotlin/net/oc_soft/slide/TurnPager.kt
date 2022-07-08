@@ -5,6 +5,7 @@ import kotlin.collections.ArrayList
 import kotlin.js.Promise
 
 import kotlinx.browser.document
+import kotlinx.browser.window
 
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
@@ -58,7 +59,9 @@ class TurnPager {
                 val bezier = TurnPage.createBezier(
                     lineForBezier, cornerLines[idx])
             
-                TurnPage.createBezierPoints(bezier, steps)
+                TurnPage.createBezierPoints(bezier, steps,
+                    doubleArrayOf(0.9, 0.9),
+                    doubleArrayOf(0.1, 0.1))
             }
             
             val pointsAnimation = PointsAnimation(containerElement)
@@ -168,6 +171,15 @@ class TurnPager {
 
 
                 /**
+                 * endlress page setting
+                 */
+                override var loopPage: Boolean
+                    get() = turnPage.loopPage
+                    set(value) {
+                        turnPage.loopPage = value
+                    }
+
+                /**
                  * proceed a page to next
                  */
                 override fun nextPage(): Promise<Unit> {
@@ -191,6 +203,7 @@ class TurnPager {
                  * release all attached resource
                  */
                 override fun destroy() {
+                    pointsAnimation.stop()
                     turnPage.detachFoldingSpace()
                 }
 
@@ -204,7 +217,6 @@ class TurnPager {
             motionbaseParam: TurnPage.MotionbaseParam): ()->Unit {
             val result: ()->Unit = {
                 turnPage.prepareFlipping(motionbaseParam) 
-                
             }
             return result
         }
@@ -219,6 +231,7 @@ class TurnPager {
             }
             return result
         }
+
 
         /**
          * setup pages
