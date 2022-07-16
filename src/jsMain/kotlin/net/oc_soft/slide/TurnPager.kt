@@ -2,6 +2,7 @@ package net.oc_soft.slide
 
 import kotlin.collections.Map
 import kotlin.collections.ArrayList
+import kotlin.collections.mutableListOf
 import kotlin.js.Promise
 
 import kotlinx.browser.document
@@ -9,6 +10,10 @@ import kotlinx.browser.window
 
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
+
+import org.w3c.dom.ResizeObserver
+import org.w3c.dom.ResizeObserverEntry
+
 
 import net.oc_soft.animation.PointsAnimation
 import net.oc_soft.animation.QubicBezier
@@ -36,6 +41,65 @@ class TurnPager {
             loopPage: Boolean,
             animationOption: Map<String, Any>): Pager {
 
+            
+            val turnPage = TurnPage()
+
+            val animationParams = createAnimationParams(
+                containerElement, turnPage,
+                direction, flipStart, cornerLines, steps) 
+
+            turnPage.loopPage = loopPage
+            
+            turnPage.createFoldingSpace(containerElement, direction)
+
+            return createPager(
+                turnPage,
+                PointsAnimation(containerElement),
+                animationParams,
+                animationOption)
+        }
+        /**
+         * create animation setting
+         */
+        fun createPager0(
+            containerElement: HTMLElement,
+            direction: TurnPage.Direction,
+            flipStart: Int,
+            cornerLines: Array<Array<Array<Number>>>,
+            steps: Int,
+            loopPage: Boolean,
+            animationOption: Map<String, Any>): Pager {
+
+
+            val animationParamsProc: ()->Triple<
+                Array<TurnPage.MotionbaseParam>,
+                Array<Array<DoubleArray>>, PointsAnimation> = {
+                createAnimationParams(
+                    containerElement, direction, flipStart, cornerLines, steps)
+            }
+            val turnPage = TurnPage()
+            turnPage.loopPage = loopPage
+            
+            turnPage.createFoldingSpace(containerElement, direction)
+
+            return createPager(
+                turnPage, 
+                animationParamsProc,
+                animationOption)
+        }
+
+        /**
+         * create animation parameters
+         */
+        fun createAnimationParams(
+            containerElement: HTMLElement,
+            direction: TurnPage.Direction,
+            flipStart: Int,
+            cornerLines: Array<Array<Array<Number>>>,
+            steps: Int):
+            Triple<Array<TurnPage.MotionbaseParam>,
+                Array<Array<DoubleArray>>,
+                PointsAnimation> {
             val bounds = TurnPage.getFoldingSpaceBounds(
                 containerElement)
             
@@ -63,21 +127,124 @@ class TurnPager {
                     doubleArrayOf(0.9, 0.9),
                     doubleArrayOf(0.1, 0.1))
             }
+            return Triple(motionbaseParams, bezierPointsArray,
+                PointsAnimation(containerElement))
+        }
+ 
+        /**
+         * create animation parameters
+         */
+        fun createAnimationParams(
+            containerElement: HTMLElement,
+            turnPage: TurnPage,
+            direction: TurnPage.Direction,
+            flipStart: Int,
+            cornerLines: Array<Array<Array<Number>>>,
+            steps: Int): AnimationParams {
             
-            val pointsAnimation = PointsAnimation(containerElement)
+            val (motionbaseParamsProc,
+                bezierPointsArrayProc) = createMotionbaseParamsCore(
+                    containerElement,
+                    direction, flipStart,
+                    cornerLines, steps)
 
-            val turnPage = TurnPage()
-            turnPage.loopPage = loopPage
             
-            turnPage.createFoldingSpace(containerElement, direction)
+            val handlersProc: ()->Array<Array<()->Unit>> = {
+                val motionbaseParams = motionbaseParamsProc()
+                arrayOf(
+                    Array<()->Unit>(motionbaseParams.size) {
+                        createStartAnimationHandler(
+                            turnPage, motionbaseParams[it])
+                    },
+                    Array<()->Unit>(motionbaseParams.size) {
+                        createFinishAnimationHandler(
+                            turnPage, motionbaseParams[it])
+                    }
+                )
+            }
 
-            return createPager(
-                turnPage, 
-                motionbaseParams, containerElement,
-                pointsAnimation,
-                bezierPointsArray,
-                animationOption)
+            val animatorsProc: ()->Array<(DoubleArray, Double)->Unit> = {
+                val motionbaseParams = motionbaseParamsProc()
+                Array<(DoubleArray, Double)->Unit>(
+                    motionbaseParams.size) {
+                    TurnPage.createAnimator(turnPage, motionbaseParams[it])
+                }
+            }
+             
+            return AnimationParams(
+                motionbaseParamsProc, 
+                bezierPointsArrayProc,
+                handlersProc,
+                animatorsProc)
+        }
 
+        /**
+         * create motion base param core
+         */
+        fun createMotionbaseParamsCore(
+            containerElement: HTMLElement,
+            direction: TurnPage.Direction,
+            flipStart: Int,
+            cornerLines: Array<Array<Array<Number>>>,
+            steps: Int):
+            Pair<()->Array<TurnPage.MotionbaseParam>,
+                ()->Array<Array<DoubleArray>>> {
+            var motionbaseParamsCache: Array<TurnPage.MotionbaseParam>? = null
+            val motionbaseParamsProc: ()->Array<TurnPage.MotionbaseParam> = {
+                var result = motionbaseParamsCache
+                if (result == null) {
+                    val bounds = TurnPage.getFoldingSpaceBounds(
+                        containerElement)
+ 
+                    result = Array<TurnPage.MotionbaseParam>(2) {
+                        val idx = it
+                        TurnPage.createMotionbaseParam(
+                            bounds, direction, idx, flipStart)
+                    }
+                    motionbaseParamsCache = result
+                }
+                result
+            }
+
+            var bezierPointsArrayCache: Array<Array<DoubleArray>>? = null
+            val bezierPointsArrayProc: ()->Array<Array<DoubleArray>> = {
+
+                var result = bezierPointsArrayCache
+                if (result == null) {
+                    val motionbaseParams = motionbaseParamsProc()
+                    result = Array<Array<DoubleArray>>(2) {
+
+                        val idx = it
+                        val motionbaseParam = motionbaseParams[idx]
+
+                        val baseLine = motionbaseParam.linesParam.baseLine
+
+                        val lineForBezier = 
+                            TurnPage.Line(
+                                baseLine[motionbaseParam.startIndex],
+                                baseLine[motionbaseParam.endIndex])
+                        
+                        val bezier = TurnPage.createBezier(
+                            lineForBezier, cornerLines[idx])
+                    
+                        TurnPage.createBezierPoints(bezier, steps,
+                            doubleArrayOf(0.9, 0.9),
+                            doubleArrayOf(0.1, 0.1))
+                    }
+                    bezierPointsArrayCache = result
+                }
+                result!!
+            }
+            
+            val resizeObserver = ResizeObserver {
+                entries, observer ->
+                motionbaseParamsCache = null
+                bezierPointsArrayCache = null
+            }
+
+            resizeObserver.observe(containerElement)
+
+            return Pair(motionbaseParamsProc, bezierPointsArrayProc)
         }
         
         /**
@@ -85,10 +252,9 @@ class TurnPager {
          */
         fun createInitPointsAnimationProc(
             pointsAnimation: PointsAnimation,
-            pointsArray: Array<Array<DoubleArray>>,
-            animators: Array<(DoubleArray, Double)->Unit>,
-            startHandlers: Array<()->Unit>,
-            finishHandlers: Array<()->Unit>,
+            pointsArrayProc: ()->Array<Array<DoubleArray>>,
+            animatorsProc: ()->Array<(DoubleArray, Double)->Unit>,
+            handlersProc: ()->Array<Array<()->Unit>>,
             duration: Double,
             rateToIndex: (Double)->Double,
             delay: Double,
@@ -97,6 +263,13 @@ class TurnPager {
             
             val result: (Int)->PointsAnimation = {
                 pointsSelector ->
+
+                val pointsArray = pointsArrayProc()
+                val animators = animatorsProc()
+
+                val (startHandlers, finishHandlers) = handlersProc()
+               
+
                 val idx = pointsSelector % pointsArray.size
                 val points = pointsArray[idx]
                 pointsAnimation.add(points,
@@ -112,41 +285,70 @@ class TurnPager {
             return result
         }
 
+
+
         /**
          * create pager 
          */
         fun createPager(
             turnPage: TurnPage,
-            motionbaseParams: Array<TurnPage.MotionbaseParam>,
-            container: HTMLElement,
-            pointsAnimation: PointsAnimation,
-            pointsArray: Array<Array<DoubleArray>>,
+            animationParamsProc: ()->Triple<
+                Array<TurnPage.MotionbaseParam>,
+                Array<Array<DoubleArray>>, PointsAnimation>,
             animationOption: Map<String, Any>): Pager {
-            val startHdlrs = Array<()->Unit>(motionbaseParams.size) {
-                createStartAnimationHandler(
-                    turnPage, motionbaseParams[it])
-            }
 
-            val finishHdlrs = Array<()->Unit>(motionbaseParams.size) {
-                createFinishAnimationHandler(
-                    turnPage, motionbaseParams[it])
-            }
-
-            val animators = Array<(DoubleArray, Double)->Unit>(
-                motionbaseParams.size) {
-                TurnPage.createAnimator(turnPage, motionbaseParams[it])
-            }
+            val (motionbaseParams, pointsArray, pointsAnimation) = 
+                animationParamsProc()
             
+            val pointsArrayProc: ()->Array<Array<DoubleArray>> = {
+                pointsArray
+            }
+            val handlersProc: ()->Array<Array<()->Unit>> = {
+                arrayOf(
+                    Array<()->Unit>(motionbaseParams.size) {
+                        createStartAnimationHandler(
+                            turnPage, motionbaseParams[it])
+                    },
+                    Array<()->Unit>(motionbaseParams.size) {
+                        createFinishAnimationHandler(
+                            turnPage, motionbaseParams[it])
+                    }
+                )
+            }
+
+            val animatorsProc: ()->Array<(DoubleArray, Double)->Unit> = {
+                Array<(DoubleArray, Double)->Unit>(
+                    motionbaseParams.size) {
+                    TurnPage.createAnimator(turnPage, motionbaseParams[it])
+                }
+            }
             val initPointsAnimation = createInitPointsAnimationProc(
                 pointsAnimation,
-                pointsArray,
-                animators,
-                startHdlrs,
-                finishHdlrs,
+                pointsArrayProc,
+                animatorsProc,
+                handlersProc,
                 TurnPage.getDuration(animationOption),
                 { QubicBezier.easeInOut(it) },
                 TurnPage.getAnimationDelay(animationOption),
                 TurnPage.getAnimationEndDelay(animationOption))
+            
+            
+            val motionbaseParamsProc: ()->Array<TurnPage.MotionbaseParam> = {
+                motionbaseParams
+            }
+            return createPager(turnPage, 
+                motionbaseParamsProc, initPointsAnimation,
+                pointsAnimation)
+
+        }
+
+        /**
+         * create pager
+         */
+        fun createPager(turnPage: TurnPage,
+            getMotionbaseParams: ()->Array<TurnPage.MotionbaseParam>,
+            initPointsAnimation: (Int)->PointsAnimation,
+            pointsAnimation: PointsAnimation): Pager {
             val animatingStatus = AnimatingStatus()
 
             return object: Pager {
@@ -155,10 +357,11 @@ class TurnPager {
                  * setup pages
                  */
                 override fun setupPages(
-                    numberPages: Int, 
-                    createPage: (Int)->HTMLElement,
+                    numberOfPages: Int, 
+                    createPage: 
+                        (Int)->Pair<HTMLElement, (HTMLElement)->HTMLElement>,
                     getBackground: (Int)->String? ) {
-                    setupPages(turnPage, numberPages, 
+                    setupPages(turnPage, numberOfPages, 
                         createPage, getBackground) 
                 }
 
@@ -185,7 +388,7 @@ class TurnPager {
                 override fun nextPage(): Promise<Unit> {
                     return proceedPage(turnPage, 
                         1,
-                        motionbaseParams[1],
+                        getMotionbaseParams()[1],
                         initPointsAnimation, 
                         animatingStatus)
                 }
@@ -195,7 +398,7 @@ class TurnPager {
                 override fun prevPage(): Promise<Unit> {
                     return proceedPage(turnPage, 
                         0,
-                        motionbaseParams[0],
+                        getMotionbaseParams()[0],
                         initPointsAnimation, 
                         animatingStatus)
                 }
@@ -208,7 +411,42 @@ class TurnPager {
                 }
 
             }
+
         }
+
+
+        /**
+         * create pager 
+         */
+        fun createPager(
+            turnPage: TurnPage,
+            pointsAnimation: PointsAnimation, 
+            animationParams: AnimationParams,
+            animationOption: Map<String, Any>): Pager {
+
+            val motionbaseParamsProc = animationParams.motionbaseParamsProc
+            val pointsArrayProc = animationParams.pointsArrayProc
+
+            val handlersProc = animationParams.handlersProc
+            val animatorsProc = animationParams.animatorsProc
+
+            val initPointsAnimation = createInitPointsAnimationProc(
+                pointsAnimation,
+                pointsArrayProc,
+                animatorsProc,
+                handlersProc,
+                TurnPage.getDuration(animationOption),
+                { QubicBezier.easeInOut(it) },
+                TurnPage.getAnimationDelay(animationOption),
+                TurnPage.getAnimationEndDelay(animationOption))
+            
+            return createPager(turnPage, 
+                motionbaseParamsProc, initPointsAnimation,
+                pointsAnimation)
+
+        }
+
+
         /**
          * handle event to start animation
          */
@@ -238,7 +476,7 @@ class TurnPager {
          */
         fun setupPages(turnPage: TurnPage,
             numberOfPages: Int,
-            createPage: (Int)->HTMLElement,
+            createPage: (Int)->Pair<HTMLElement, (HTMLElement)->HTMLElement>,
             getBackgroundStyle: (Int)->String?) {
             val direction = turnPage.direction 
             val rowColumn = if (direction == TurnPage.Direction.HORIZONTAL) {
@@ -246,26 +484,43 @@ class TurnPager {
             } else {
                 intArrayOf(2, 1)
             }
+            val foldingSpace = turnPage.foldingSpace!!
             
-
             val pageSize = turnPage.foldingSpaceSize
-            val pages = ArrayList<HTMLElement>()
+            val pages = ArrayList<
+                Pair<HTMLElement, (HTMLElement)->HTMLElement>>()
+            
+            val cells = ArrayList<ImageDivision.Cell>()
             for (pageIdx in 0 until numberOfPages) {
                 
-                val pageAndGrids = ImageDivision.create(
+                val cells0 = ImageDivision.create(
                     rowColumn[0], rowColumn[1],
-                    kotlin.math.round(pageSize[0]).toInt(),
-                    kotlin.math.round(pageSize[1]).toInt(),
+                    pageSize[0],
+                    pageSize[1],
                     { createElement(
+                        foldingSpace,
                         pageSize,
                         pageIdx,
                         createPage,
                         getBackgroundStyle) }    
                 )
-                pageAndGrids.forEach {
-                    pages.add(it.first)
+                cells0.forEach {
+                    cells.add(it)
+                    val (elem, cloneElem) = it 
+                    pages.add(Pair(elem, cloneElem))
                 }
             }
+
+            
+            val resizeObserver = ResizeObserver {
+                enntries, observer ->
+                val pageSize = turnPage.foldingSpaceSize
+                cells.forEach {
+                    it.updateBounds(pageSize[0], pageSize[1])     
+                }
+            }
+            resizeObserver.observe(foldingSpace) 
+
             turnPage.setPages(pages.toTypedArray()) 
         }
 
@@ -273,13 +528,14 @@ class TurnPager {
          * create 
          */
         fun createElement(
+            foldingSpace: HTMLElement,
             foldingSpaceSize: DoubleArray,
             pageIndex: Int,
-            createPage: (Int)->HTMLElement,
-            getBackgroundStyle: (Int)->String?): HTMLElement {
+            createPage: (Int)->Pair<HTMLElement, (HTMLElement)->HTMLElement>,
+            getBackgroundStyle: (Int)->String?): 
+                Pair<HTMLElement, (HTMLElement)->HTMLElement> {
 
             val pageParent = document.createElement("div") as HTMLElement
-
             pageParent.style.width = "${foldingSpaceSize[0]}px"
             pageParent.style.height = "${foldingSpaceSize[1]}px"
             pageParent.style.position = "relative"
@@ -289,15 +545,43 @@ class TurnPager {
                  
                 pageParent.style.background = it
             }
-             
-            pageParent.append(createPage(pageIndex))
-            val result = document.createElement("div") as HTMLElement
 
-            result.append(pageParent)
+            val (elem, clonePageElement) = createPage(pageIndex)
+             
+            pageParent.append(elem)
+
+            val grandPageParent = document.createElement("div") as HTMLElement
+
+            val elements = ArrayList<Array<HTMLElement>>()
+            val cloneElement: (HTMLElement)->HTMLElement = {
+                val result = it.cloneNode() as HTMLElement
+                val pageParent = it.firstElementChild as HTMLElement
+
+                val pageParent0 = pageParent.cloneNode() as HTMLElement
+                val elem = pageParent.firstElementChild as HTMLElement
+                val elem0 = clonePageElement(elem)
+                pageParent0.append(elem0)
+                
+                result.append(pageParent0)
+                elements.add(arrayOf(result, pageParent0, elem0))
+                result
+            }
+
+            grandPageParent.append(pageParent)
             
-            return result
+            return Pair(grandPageParent, cloneElement)
         }
 
+
+
+        /**
+         * update element size
+         */
+        fun updateSize(element: HTMLElement, width: Double, height: Double) {
+            element.style.width = "${width}px"
+            element.style.height = "${height}px"
+        }
+        
 
         /**
          * set page index
@@ -362,6 +646,56 @@ class TurnPager {
          * anition event handler
          */
         var animationEventHandler: ((Event)->Unit)? = null)
+
+
+    /**
+     * animation parameter
+     */
+    class AnimationParams(
+        /**
+         * procedure to create motion base paramers 
+         */
+        val motionbaseParamsProc: ()->Array<TurnPage.MotionbaseParam>,
+        /**
+         * procedure to create bezier points
+         */
+        val pointsArrayProc: ()->Array<Array<DoubleArray>>,
+        /**
+         * procedure to create event handlers
+         */
+        val handlersProc: ()->Array<Array<()->Unit>>,
+        /**
+         * procedure to create animator procedure's array
+         */
+        val animatorsProc: ()->Array<(DoubleArray, Double)->Unit>) {
+
+        /**
+         * component 1
+         */
+        operator fun component1(): ()->Array<TurnPage.MotionbaseParam> {
+            return motionbaseParamsProc
+        }
+        /**
+         * component 2
+         */
+        operator fun component2(): ()->Array<Array<DoubleArray>> {
+            return pointsArrayProc 
+        }
+
+        /**
+         * component 3
+         */
+        operator fun component3(): ()->Array<Array<()->Unit>> {
+            return handlersProc
+        }
+
+        /**
+         * component 4
+         */
+        operator fun component4(): ()->Array<(DoubleArray, Double)->Unit> {
+            return animatorsProc
+        }
+    }
 }
 
 // vi: se ts=4 sw=4 et:

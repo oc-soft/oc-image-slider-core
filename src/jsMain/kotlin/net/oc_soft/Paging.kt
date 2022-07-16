@@ -36,7 +36,7 @@ class Paging(
         /**
          * contents
          */
-        var pages: Array<HTMLElement>,
+        var pages: Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>>,
         /**
          * paging index
          */
@@ -111,7 +111,9 @@ class Paging(
     /**
      * page contents loader
      */
-    var contentsLoader: ((HTMLElement)->Array<HTMLElement>)? = null
+    var contentsLoader: ((HTMLElement)->Array<
+        Pair<HTMLElement, (HTMLElement)->HTMLElement>>)? = null
+
 
     /**
      * load backgrounds
@@ -338,7 +340,8 @@ class Paging(
      * load contents
      */
     fun loadContents(
-        pagerContainer: HTMLElement): Array<HTMLElement> {
+        pagerContainer: HTMLElement): 
+        Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>> {
         return contentsLoader?.let {
             it(pagerContainer)
         }?: loadContentTemplates()
@@ -347,18 +350,23 @@ class Paging(
     /**
      * load content templates
      */
-    fun loadContentTemplates(): Array<HTMLElement> {
+    fun loadContentTemplates()
+        : Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>> {
         return pagingContainer?.let {
             it.querySelector("template.pages")?.let {
                 val tmpl = it as HTMLTemplateElement
                 
 
                 val children = tmpl.content.children
-                Array<HTMLElement>(children.length) {
-                    children[it] as HTMLElement
+                Array<Pair<HTMLElement, 
+                    (HTMLElement)->HTMLElement>>(children.length) {
+                    val cloneElem: (HTMLElement)->HTMLElement = {
+                        it.cloneNode(true) as HTMLElement
+                    }
+                    Pair(children[it] as HTMLElement, cloneElem)
                 }
-            }?: emptyArray<HTMLElement>()
-        }?: emptyArray<HTMLElement>()
+            }?: emptyArray<Pair<HTMLElement, (HTMLElement)->HTMLElement>>()
+        }?: emptyArray<Pair<HTMLElement, (HTMLElement)->HTMLElement>>()
     }
 
     
@@ -421,12 +429,14 @@ class Paging(
      * animation sequence
      */
     fun animationSequence0(
-        pages: Array<HTMLElement>,
+        pages: Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>>,
         backgrounds: Array<String>) {
         pagingContainer?.let {
             val pagerContainer = it
-            val createPage: (Int) -> HTMLElement = {
-                pages[it].cloneNode(true) as HTMLElement
+            val createPage: 
+                (Int) -> Pair<HTMLElement, (HTMLElement)->HTMLElement> = {
+                val elem = pages[it].second(pages[it].first)
+                Pair(elem, pages[it].second)
             } 
 
             val getBackgrounds: (Int)-> String? = {

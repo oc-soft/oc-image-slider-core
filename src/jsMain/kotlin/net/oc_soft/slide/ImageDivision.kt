@@ -3,6 +3,8 @@ package net.oc_soft.slide
 import kotlinx.browser.document
 
 import kotlin.collections.ArrayList
+import kotlin.collections.MutableList
+import kotlin.collections.mutableListOf
 
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLImageElement
@@ -26,15 +28,19 @@ class ImageDivision {
         fun create(
             rowCount: Int,
             columnCount: Int,
-            width: Int,
-            height: Int,
-            url: URL): Array<Pair<HTMLElement, DoubleArray>> {
+            width: Double,
+            height: Double,
+            url: URL): Array<Cell> {
             
-            val createElement: ()->HTMLElement = {
+            val createElement:
+                ()->Pair<HTMLElement, (HTMLElement)->HTMLElement> = {
                 val imgElem = document.createElement(
                     "img") as HTMLImageElement
                 imgElem.src = url.href
-                imgElem
+                val cloneElem: (HTMLElement)->HTMLElement = {
+                    it.cloneNode() as HTMLElement
+                }
+                Pair(imgElem, cloneElem)
             }
             return create(rowCount, columnCount, width, height, createElement) 
         }
@@ -45,12 +51,12 @@ class ImageDivision {
         fun create(
             rowCount: Int,
             columnCount: Int,
-            width: Int,
-            height: Int,
-            createElement: ()->HTMLElement): 
-                Array<Pair<HTMLElement, DoubleArray>> {
+            width: Double,
+            height: Double,
+            createElement: ()->Pair<HTMLElement, (HTMLElement)->HTMLElement>): 
+                Array<Cell> {
             
-            val elements = ArrayList<Pair<HTMLElement, DoubleArray>>()
+            val elements = ArrayList<Cell>()
             if (rowCount > 0 && columnCount > 0) {
                 val grids = Grid.generate(doubleArrayOf(
                     0.0, 0.0, 
@@ -58,41 +64,150 @@ class ImageDivision {
                     height.toDouble()),
                     rowCount,
                     columnCount) 
-                grids.forEach {
-                    val row = it
-                    row.forEach {
-                        val grid = it
-                        val elem = createElement()
+
+                for (rowIdx in 0 until rowCount) {
+                    for (colIdx in 0 until columnCount) {
+
+                        val (elem, cloneElem) = createElement()
                         val elementContainer = 
                             document.createElement("div") as HTMLElement
-
-                        val imgWidth = kotlin.math.round(
-                            grid[2] - grid[0]).toInt()
-                        val imgHeight = kotlin.math.round(
-                            grid[3] - grid[1]).toInt()
-
-
                         elem.style.position = "absolute"  
-                        elem.style.left = "-${grid[0]}px"
-                        elem.style.top = "-${grid[1]}px"
-
                         elementContainer.style.position = "absolute"
                         elementContainer.style.overflowX = "hidden"
                         elementContainer.style.overflowY = "hidden"
 
-                        elementContainer.style.width = "${imgWidth}px"
-                        elementContainer.style.height = "${imgHeight}px" 
                         elementContainer.append(elem)
-
-                        
-                        elements.add(Pair(elementContainer, grid))
+                        val boundsUpdater: (Double, Double)->DoubleArray = {
+                            w, h ->
+                            updateBounds(elem, elementContainer,
+                                doubleArrayOf(0.0, 0.0, w, h),
+                                rowCount, columnCount,
+                                rowIdx, colIdx)
+                        } 
+                        val grid = boundsUpdater(width, height)
+                        elements.add(
+                            Cell(elementContainer, elem, 
+                                rowCount, columnCount, rowIdx, colIdx,
+                                cloneElem))
                     }
                 } 
             }
             return elements.toTypedArray()
         }
 
+
+        /**
+         * update size
+         */
+        fun updateBounds(
+            element: HTMLElement,
+            elementContainer: HTMLElement,
+            bounds: DoubleArray, 
+            rowCount: Int,
+            columnCount: Int,
+            row: Int,
+            column: Int): DoubleArray {
+
+            val grid = Grid.calcBound(bounds,rowCount, columnCount, row, column)
+            element.style.left = "-${grid[0]}px"
+            element.style.top = "-${grid[1]}px"
+
+            val imgWidth = grid[2] - grid[0]
+            val imgHeight = grid[3] - grid[1]
+
+            elementContainer.style.width = "${imgWidth}px"
+            elementContainer.style.height = "${imgHeight}px" 
+
+            val result = grid
+            return result
+        }
         
+    }
+
+    /**
+     * divided cell
+     */
+    class Cell(
+        elementContainer: HTMLElement,
+        element: HTMLElement,
+        /**
+         * row count of cell's container
+         */
+        val rowCount: Int,
+        /**
+         * column count of cell's container
+         */
+        val columnCount: Int,
+        /**
+         * row index
+         */
+        val row: Int,
+        /**
+         * column index
+         */
+        val column: Int,
+        /**
+         * duplicate element
+         */
+        val childClone: (HTMLElement)->HTMLElement) {
+        
+        /**
+         * cloned elements
+         */
+        val elements: MutableList<Array<HTMLElement>> = 
+            mutableListOf(arrayOf(elementContainer, element)) 
+        /**
+         * divived cell root container
+         */
+        val elementContainer: HTMLElement get() = elements[0][0]
+        /**
+         * the contents of cell
+         */
+        val element: HTMLElement get() = elements[0][1]
+
+        /**
+         * clone elemtn procedure
+         */
+        val cloneElement: (HTMLElement)->HTMLElement = 
+            { this.cloneElement0(it) }
+
+        operator fun component1(): HTMLElement {
+            return elementContainer
+        }
+
+        operator fun component2(): (HTMLElement)->HTMLElement {
+            return cloneElement
+        }
+
+        /**
+         * procedure to update size and location.
+         */
+        fun updateBounds(width: Double, height: Double) {
+            
+            elements.forEach {
+                updateBounds(it[1], it[0], 
+                    doubleArrayOf(0.0, 0.0, width, height),
+                    rowCount, columnCount, row, column)
+            }
+        }
+
+
+        /**
+         * clone element
+         */
+        fun cloneElement0(elementContainer: HTMLElement): HTMLElement {
+            val result = elementContainer.cloneNode() as HTMLElement
+
+
+            val child = childClone(
+                elementContainer.firstElementChild as HTMLElement)
+            result.append(child)
+            
+            elements.add(arrayOf(result, child))
+
+            return result
+        }
+
     }
 }
 

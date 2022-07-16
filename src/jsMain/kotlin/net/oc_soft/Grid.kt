@@ -18,19 +18,29 @@ class Grid {
             bound: DoubleArray,
             rowCount: Int,
             colCount: Int): Array<Array<DoubleArray>> {
-            val width = (bound[2] - bound[0]) / colCount.toDouble()
-            val height = (bound[3] - bound[1]) / rowCount.toDouble()
             return Array<Array<DoubleArray>> (rowCount) {
                 val rowIdx = it
                 Array<DoubleArray>(colCount) {
                     val colIdx = it
-                    doubleArrayOf(
-                        bound[0] + colIdx * width,
-                        bound[1] + rowIdx * height,
-                        bound[0] + (colIdx + 1) * width,
-                        bound[1] + (rowIdx + 1) * height)
+                    calcBound(bound, rowCount, colCount, rowIdx, colIdx) 
                 }
             }  
+        } 
+        /**
+         * calculate bound
+         */
+        fun calcBound(bounds: DoubleArray,
+            rowCount: Int,
+            colCount: Int,
+            rowIndex: Int,
+            colIndex: Int): DoubleArray {
+            val width = (bounds[2] - bounds[0]) / colCount.toDouble()
+            val height = (bounds[3] - bounds[1]) / rowCount.toDouble()
+            return doubleArrayOf(
+                bounds[0] + colIndex * width,
+                bounds[1] + rowIndex * height,
+                bounds[0] + (colIndex + 1) * width,
+                bounds[1] + (rowIndex + 1) * height)
         } 
     }
 }

@@ -12,7 +12,7 @@ interface Pager {
      */
     fun setupPages(
         numberOfPages: Int, 
-        createPage: (Int)->HTMLElement,
+        createPage: (Int)->Pair<HTMLElement, (HTMLElement)->HTMLElement>,
         getBackground: (Int)->String?)
 
     /**

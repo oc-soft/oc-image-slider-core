@@ -716,7 +716,7 @@ class TurnPage {
      * set pages
      */
     fun setPages(
-        elements: Array<HTMLElement>) {
+        elements: Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>>) {
         foldingSpace?.let { 
             setPages(it, elements)
         }
@@ -728,15 +728,15 @@ class TurnPage {
     @Suppress("UNUSED_PARAMETER")
     fun setPages(
         container: HTMLElement,
-        elements: Array<HTMLElement>) {
+        elements: Array<Pair<HTMLElement, (HTMLElement)->HTMLElement>>) {
 
         contents.clear()
         foldingContents.clear() 
         
         elements.forEach {
-            val foldingElement = it.cloneNode(true) as HTMLElement
+            val foldingElement = it.second(it.first)
             foldingElement.removeAttribute("id")
-            contents.add(it)
+            contents.add(it.first)
             foldingContents.add(foldingElement)
         }
     }
