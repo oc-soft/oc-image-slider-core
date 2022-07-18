@@ -28,6 +28,15 @@ class PagerOption {
                         "turn-page" -> createTurnPager(
                             containerElement,
                             optionMap)
+                        "slide-page" -> createSlidePager(
+                            containerElement,
+                            optionMap)
+                        "push-page" -> createPushPager(
+                            containerElement,
+                            optionMap)
+                        "fade-page" -> createFadePager(
+                            containerElement,
+                            optionMap)
                         else -> null
                     }
                 } else {
@@ -91,6 +100,46 @@ class PagerOption {
                 TurnPager.createPager(containerElement,
                     direction, flipStart,
                     cornerLine, steps, loopPage, animationOption)
+            } else null 
+        }
+
+        /**
+         * create slide pager
+         */
+        fun createSlidePager(
+            containerElement: HTMLElement,
+            optionMap: Map<String, Any>): Pager? {
+
+            
+            val animationOption = Option.getAnimationOption(optionMap)           
+            return if (animationOption != null) {
+                SlidePager.createPager(containerElement, animationOption)
+            } else null 
+        }
+        /**
+         * create push pager
+         */
+        fun createPushPager(
+            containerElement: HTMLElement,
+            optionMap: Map<String, Any>): Pager? {
+
+            
+            val animationOption = Option.getAnimationOption(optionMap)           
+            return if (animationOption != null) {
+                PushPager.createPager(containerElement, animationOption)
+            } else null 
+        }
+        /**
+         * create fade pager
+         */
+        fun createFadePager(
+            containerElement: HTMLElement,
+            optionMap: Map<String, Any>): Pager? {
+
+            
+            val animationOption = Option.getAnimationOption(optionMap)           
+            return if (animationOption != null) {
+                FadePager.createPager(containerElement, animationOption)
             } else null 
         }
     } 

@@ -122,6 +122,7 @@ kotlin {
                 implementation kotlinw('browser', '0.0.1-pre.345')
                 implementation kotlinw('extensions', '1.0.1-pre.345')
                 implementation kotlin('stdlib-js')
+                implementation project(':ktjs')
             }
         }
         jsTest {
