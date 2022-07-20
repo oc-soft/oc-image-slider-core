@@ -274,9 +274,6 @@ class FadePage {
     fun proceedPage(
         displacement: Int,
         option: dynamic): Promise<Unit> {
-
-
-
         var optionValue: Any? = null 
 
         optionValue = getOptionValue(

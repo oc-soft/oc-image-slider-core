@@ -12,6 +12,8 @@ import kotlin.collections.HashMap
 import kotlinx.browser.window
 import kotlinx.browser.document
 
+import kotlinx.js.Object
+
 import org.w3c.dom.url.URL
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLTemplateElement
@@ -107,6 +109,12 @@ class Paging(
      * auto paging direction
      */
     var autoPagingDirection: PagingDirection = PagingDirection.FORWARD
+
+
+    /**
+     * auto paging stop duration
+     */
+    var autoPagingStopDuration = 0
 
     /**
      * page contents loader
@@ -226,10 +234,8 @@ class Paging(
                 setting[idx]
             }
 
-            val keys = js("Object.keys(elem)")
-
-            for (i in 0 until (keys.length as Int)) {
-                val key = keys[i] as String
+            Object.keys(elem).forEach {
+                val key = it
                 settingElem[key] = elem[key] as Any
             }
         }
@@ -256,6 +262,14 @@ class Paging(
             }?: 1
 
             autoPagingDirection = PagingDirection.intToDirection(dirIdx)
+
+            it["auto-paging-stop-duration"]?.let {
+                autoPagingStopDuration = when (it) {
+                    is String -> it.toInt()
+                    is Number -> it.toInt()
+                    else -> autoPagingStopDuration
+                }
+            }
         }
     }
 
@@ -538,7 +552,9 @@ class Paging(
                         pagingStatus0.pageIndex += direction.displacement
                         if (loopPaging) {
                             val pageSize = pagingStatus0.pages.size
-                            val pageIdx = pagingStatus0.pageIndex % pageSize 
+                            var pageIdx = pagingStatus0.pageIndex % pageSize 
+                            pageIdx += pageSize 
+                            pageIdx %= pageSize
                             pagingStatus0.pageIndex = pageIdx
                         }
                         val currentPager = getPager(pagingStatus0.pageIndex)
@@ -553,7 +569,9 @@ class Paging(
                         currentPager?.let {
                             it.first.page = pagingStatus0.pageIndex
                         }
-                        autoPlay0()
+                        window.setTimeout({
+                            autoPlay0()
+                        }, autoPagingStopDuration)
                     }
                 } else {
                     pagingStatus?.let {

@@ -1,5 +1,7 @@
 package net.oc_soft.slide
 
+import kotlin.text.toInt
+import kotlin.text.toDouble
 /**
  * convert any to integer
  */
@@ -21,6 +23,18 @@ fun Any.toBoolean(): Boolean {
         else -> throw IllegalStateException()
     }
 }
+
+/**
+ * convert any to double
+ */
+fun Any.toDouble(): Double {
+    return when (this) {
+        is Number -> toDouble()
+        is String -> toDouble()
+        else -> throw IllegalStateException()
+    }
+}
+
 /**
  * convert to int array
  */

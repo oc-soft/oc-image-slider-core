@@ -37,6 +37,9 @@ class PagerOption {
                         "fade-page" -> createFadePager(
                             containerElement,
                             optionMap)
+                        "fragments-page" -> createFragmentsPager(
+                            containerElement,
+                            optionMap)
                         else -> null
                     }
                 } else {
@@ -141,6 +144,19 @@ class PagerOption {
             return if (animationOption != null) {
                 FadePager.createPager(containerElement, animationOption)
             } else null 
+        }
+
+        /**
+         * create fragments pager
+         */
+        fun createFragmentsPager(
+            containerElement: HTMLElement,
+            optionMap: Map<String, Any>): Pager? {
+            val animationOption = Option.getAnimationOption(optionMap)           
+            return if (animationOption != null) {
+                FragmentsPager.createPager(containerElement, animationOption)
+            } else null 
+                
         }
     } 
 }
