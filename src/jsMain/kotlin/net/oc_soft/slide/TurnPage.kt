@@ -512,8 +512,12 @@ class TurnPage {
     /**
      * folding space element
      */
-    val foldingSpaceSize: DoubleArray
-        get() = getFoldingSpaceSize(foldingSpace!!)
+    val foldingSpaceSize: DoubleArray?
+        get() {
+            return foldingSpace?.let {
+                getFoldingSpaceSize(it)
+            }
+        }
     
 
     /**

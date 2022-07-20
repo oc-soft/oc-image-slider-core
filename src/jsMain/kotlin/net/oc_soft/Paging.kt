@@ -525,8 +525,7 @@ class Paging(
                 val direction = autoPagingDirection
 
                 var doPaging = if (loopPaging) {
-
-                    true
+                    pagingStatus0.pages.size > 1
                 } else {
                     val nextIdx = pagingStatus0.pageIndex + 
                         direction.displacement
@@ -619,7 +618,7 @@ class Paging(
                 val pagingStatus0 = it
 
                 val doPaging = if (loopPaging) {
-                    true
+                    pagingStatus0.pages.size > 1
                 } else {
                     val nextIdx = pagingStatus0.pageIndex + disp
                     nextIdx in pagingStatus0.pages.indices

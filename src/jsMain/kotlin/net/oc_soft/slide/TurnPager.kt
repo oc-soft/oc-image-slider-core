@@ -486,37 +486,41 @@ class TurnPager {
             }
             val foldingSpace = turnPage.foldingSpace!!
             
-            val pageSize = turnPage.foldingSpaceSize
+            
             val pages = ArrayList<
                 Pair<HTMLElement, (HTMLElement)->HTMLElement>>()
             
             val cells = ArrayList<ImageDivision.Cell>()
-            for (pageIdx in 0 until numberOfPages) {
-                
-                val cells0 = ImageDivision.create(
-                    rowColumn[0], rowColumn[1],
-                    pageSize[0],
-                    pageSize[1],
-                    { createElement(
-                        foldingSpace,
-                        pageSize,
-                        pageIdx,
-                        createPage,
-                        getBackgroundStyle) }    
-                )
-                cells0.forEach {
-                    cells.add(it)
-                    val (elem, cloneElem) = it 
-                    pages.add(Pair(elem, cloneElem))
+            turnPage.foldingSpaceSize?.let {
+                val pageSize = it
+                for (pageIdx in 0 until numberOfPages) {
+                    
+                    val cells0 = ImageDivision.create(
+                        rowColumn[0], rowColumn[1],
+                        pageSize[0],
+                        pageSize[1],
+                        { createElement(
+                            foldingSpace,
+                            pageSize,
+                            pageIdx,
+                            createPage,
+                            getBackgroundStyle) }    
+                    )
+                    cells0.forEach {
+                        cells.add(it)
+                        val (elem, cloneElem) = it 
+                        pages.add(Pair(elem, cloneElem))
+                    }
                 }
             }
-
             
             val resizeObserver = ResizeObserver {
                 enntries, observer ->
-                val pageSize = turnPage.foldingSpaceSize
-                cells.forEach {
-                    it.updateBounds(pageSize[0], pageSize[1])     
+                turnPage.foldingSpaceSize?.let {
+                    val pageSize = it
+                    cells.forEach {
+                        it.updateBounds(pageSize[0], pageSize[1])     
+                    }
                 }
             }
             resizeObserver.observe(foldingSpace) 
